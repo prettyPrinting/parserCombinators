@@ -1,4 +1,4 @@
-# parserCombinators [![Build Status](https://travis-ci.org/prettyPrinting/parserCombinators.svg?branch=master)](https://travis-ci.org/prettyPrinting/parserCombinators)
+# parserCombinators [![Build Status](https://travis-ci.org/anlun/parserCombinators.svg?branch=master)](https://travis-ci.org/anlun/parserCombinators)
 
 The parser combinator library written on Kotlin.  
   
