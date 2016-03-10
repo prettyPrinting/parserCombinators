@@ -1,4 +1,4 @@
-package podkopaev.net
+package net.podkopaev
 
 import org.junit.Assert
 import org.junit.Test

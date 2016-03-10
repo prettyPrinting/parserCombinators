@@ -1,4 +1,4 @@
-package podkopaev.net
+package net.podkopaev
 
 import java.util.*
 

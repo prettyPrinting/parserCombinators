@@ -25,20 +25,20 @@ dependencies {
 sourceSets {
     main {
         kotlin {
-            srcDir 'src'
+            srcDir 'src/main'
         }
     }
     test {
         kotlin {
-            srcDir 'test'
+            srcDir 'src/test'
         }
     }
 }
 
 idea.module {
     name = "parserCombinators"
-    sourceDirs += file('src')
-    testSourceDirs += file('test')
+    sourceDirs += file('src/main')
+    testSourceDirs += file('src/test')
 }
 
 task setup {
