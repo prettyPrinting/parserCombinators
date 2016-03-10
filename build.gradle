@@ -1,0 +1,56 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.0.0'
+    }
+}
+
+apply plugin: 'idea'
+apply plugin: 'kotlin'
+
+defaultTasks 'test'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.jetbrains.kotlin:kotlin-stdlib:1.0.0'
+    compile 'org.jetbrains.kotlin:kotlin-runtime:1.0.0'
+    testCompile 'junit:junit:+'
+}
+
+sourceSets {
+    main {
+        kotlin {
+            srcDir 'src'
+        }
+    }
+    test {
+        kotlin {
+            srcDir 'test'
+        }
+    }
+}
+
+idea.module {
+    name = "parserCombinators"
+    sourceDirs += file('src')
+    testSourceDirs += file('test')
+}
+
+task setup {
+    dependsOn ideaModule
+}
+
+jar {
+    from sourceSets.main.allSource
+}
+
+test.finalizedBy(jar)
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.5'
+}
