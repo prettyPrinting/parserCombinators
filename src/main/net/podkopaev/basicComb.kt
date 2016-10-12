@@ -44,9 +44,9 @@ class Top private constructor () {
 }
 
 fun <A> parser(parse: Parser<A>.(String) -> Result<A>): Parser<A> =
-    object : Parser<A> {
-        override fun invoke(input: String): Result<A> = parse(input)
-    }
+        object : Parser<A> {
+            override fun invoke(input: String): Result<A> = parse(input)
+        }
 
 fun <A> conp(value: A): Parser<A> = parser { input ->
     Result(listOf(Pair(value, input)))
@@ -65,6 +65,18 @@ fun <A, B> transp(parser: Parser<A>, f: (A) -> B): Parser<B> =
 
 fun <A> disjp(left: Parser<A>, right: Parser<A>): Parser<A> = parser { input ->
     left(input) + right(input)
+}
+
+fun <A> conjp(left: Parser<A>, right: Parser<A>): Parser<A> = parser { input ->
+    val leftResult = left(input)
+    val rightResult = right(input)
+    val resultList = LinkedList<Pair<A, String>>()
+    for (p in leftResult) {
+        if(rightResult.contains(p)) {
+            resultList.add(p)
+        }
+    }
+    return@parser Result(resultList)
 }
 
 fun <A, B> seqlp(left: Parser<A>, right: Parser<B>): Parser<A> =
@@ -163,7 +175,7 @@ fun <A> cparen(p: Parser<A>): Parser<A> = gparen(litp("{"), p, litp("}"))
 
 val space : Parser<Char> =
         char(' ') / char('\n') / char('\t') /
-        (litp("\r\n") + { '\n' })
+                (litp("\r\n") + { '\n' })
 val spaces: Parser<String> = many0(space) + { it.toStr() }
 fun <A> sp(p: Parser<A>): Parser<A> = gparen(spaces, p, spaces)
 
@@ -176,4 +188,3 @@ fun <A> leftAssocp(opp: Parser<String>, elemp: Parser<A>, f: (String, A, A) -> A
     }
     parser(input)
 }
-
