@@ -6,12 +6,12 @@ import org.junit.Test
 class BasicCombTest {
     @Test fun test0() {
         val parser = digit
-        Assert.assertEquals('1', parser.get("1"))
+        Assert.assertEquals(listOf('1'), parser.get("1"))
     }
 
     @Test fun test1() {
         val parser = number
-        Assert.assertEquals(123, parser.get("123"))
+        Assert.assertEquals(listOf("123"), parser.get("123"))
     }
 
     @Test fun test2() {
@@ -25,7 +25,7 @@ class BasicCombTest {
     @Test fun test3() {
         val parser = digit - digit
         Assert.assertEquals(
-                '2',
+                listOf('2'),
                 parser.get("12")
         )
     }
@@ -35,39 +35,35 @@ class BasicCombTest {
             x, y -> y.toString() + x.toString()
         }
         Assert.assertEquals(
-                "21",
+                listOf("21"),
                 parser.get("12")
         )
     }
 
     @Test fun test5() {
         val parser = disjp(digit, alpha)
-        Assert.assertEquals('a', parser.get("a"))
+        Assert.assertEquals(listOf('a'), parser.get("a"))
     }
 
-    @Test fun test6() {
-        val parser = conjp(alpha, digit)
-        Assert.assertEquals(null, parser.get("a"))
-    }
 
     @Test fun test7() {
         val parser = disjp(word, symbol)
-        Assert.assertEquals("answr42", parser.get("answr42"))
+        Assert.assertEquals(listOf("abcd123"), parser.get("abcd123"))
     }
 
     @Test fun test8() {
         val parser = conjp(symbol, word)
-        Assert.assertEquals(null, parser.get("answr42"))
+        Assert.assertEquals(null, parser.get("abcd123"))
     }
 
     @Test fun test9() {
         val parser = conjp(word, symbol)
-        Assert.assertEquals("qwrt", parser.get("qwrt"))
+        Assert.assertEquals(listOf("qwrt"), parser.get("qwrt"))
     }
 
     @Test fun test10() {
         val parser = disjp(digit, alphaOrDigit)
-        Assert.assertEquals('a', parser.get("a"))
+        Assert.assertEquals(listOf('a'), parser.get("a"))
     }
 
     @Test fun test11() {
@@ -77,6 +73,6 @@ class BasicCombTest {
 
     @Test fun test12() {
         val parser = conjp(digit, alphaOrDigit)
-        Assert.assertEquals('1', parser.get("1"))
+        Assert.assertEquals(listOf('1'), parser.get("1"))
     }
 }
