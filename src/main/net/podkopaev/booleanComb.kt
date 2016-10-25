@@ -225,3 +225,35 @@ fun <A> leftAssocp(opp: Parser<String>, elemp: Parser<A>, f: (String, A, A) -> A
         el.second.fold(el.first) { e, t -> f(t.first, e, t.second) }
     }
 }
+
+class ConjParser<A, B>(
+        val left: Parser<A>, val right: Parser<B>
+): Parser<Pair<A, B>>() {
+    override fun parse(pos: Int): List<Pair<Int, Pair<A, B>>> {
+        throw NotImplementedError()
+    }
+
+    override fun init(s: String) {
+        super.init(s)
+        left.init(s)
+        right.init(s)
+    }
+}
+fun <A, B> conjp(left: Parser<A>, right: Parser<B>): Parser<Pair<A, B>> =
+        ConjParser(left, right)
+
+class ConjNotParser<A, B>(
+        val left: Parser<A>, val right: Parser<B>
+): Parser<A>() {
+    override fun parse(pos: Int): List<Pair<Int, A>> {
+        throw NotImplementedError()
+    }
+
+    override fun init(s: String) {
+        super.init(s)
+        left.init(s)
+        right.init(s)
+    }
+}
+fun <A, B> conjNotp(left: Parser<A>, right: Parser<B>): Parser<A> =
+        ConjNotParser(left, right)
