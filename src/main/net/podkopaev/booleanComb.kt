@@ -3,6 +3,7 @@ package net.podkopaev.booleanComb
 import java.util.*
 
 class ParserNotInitializedException(): Exception()
+class ProxyParserNotSetException(): Exception()
 
 abstract class Parser<A>() {
     protected var parseString: String? = null
@@ -10,7 +11,7 @@ abstract class Parser<A>() {
 
     private var analyzedPos: HashMap<Int, List<Pair<Int, A>>>? = null
 
-    open fun init(s: String) {
+    internal open fun init(s: String) {
         parseString = s
         analyzedPos = HashMap()
     }
@@ -19,7 +20,7 @@ abstract class Parser<A>() {
         val memoizedRes = analyzedPos?.get(pos)
         if (memoizedRes != null) return memoizedRes
         val parseRes = parse(pos)
-        analyzedPos?.put(pos, parseRes.map { pa -> Pair(pa.first + pos, pa.second) })
+        analyzedPos?.put(pos, parseRes)
         return parseRes
     }
 
@@ -27,7 +28,9 @@ abstract class Parser<A>() {
     operator fun <B> plus (p: Parser<B>): Parser<Pair<A, B>> = seq   (this, p)
     operator fun     div  (p: Parser<A>): Parser<A>          = disjp (this, p)
 
-    fun <B> map(f: (A) -> B ): Parser<B> = transp(this, f)
+    infix fun <B> map (f: (A) -> B ): Parser<B> = transp(this, f)
+    infix fun <B> seql(p: Parser<B>): Parser<A> = seqlp (this, p)
+    infix fun <B> seqr(p: Parser<B>): Parser<B> = seqrp (this, p)
 
     fun get(s: String): A? {
         init(s)
@@ -38,10 +41,12 @@ abstract class Parser<A>() {
 
 internal fun <A> parser(parse: Parser<A>.(String) -> List<Pair<Int, A>>): Parser<A> =
     object : Parser<A>() {
-        override fun parse(pos: Int): List<Pair<Int, A>> =
-            parse(parseString?.substring(pos)
+        override fun parse(pos: Int): List<Pair<Int, A>> {
+            if (pos >= parseString?.length ?: -1 || pos < 0) { return listOf() }
+            return parse(parseString?.substring(pos)
                     ?: throw ParserNotInitializedException())
-            .map { pa -> Pair(pa.first + pos, pa.second) }
+                    .map { pa -> Pair(pa.first + pos, pa.second) }
+        }
     }
 
 fun <A> conp(value: A): Parser<A> = parser {
@@ -157,6 +162,24 @@ fun <A> many1(parser: Parser<A>): Parser<List<A>> =
             v
         }
 
+class ProxyParser<A>(): Parser<A>() {
+    // TODO: simplify ProxyParser, i.e. remove intermediate table (analyzedPos)
+    var parser: Parser<A>? = null
+        set(newParser) {
+            field = newParser
+            val parseStringVal = parseString
+            if (parseStringVal != null) {
+                init(parseStringVal)
+            }
+        }
+
+    override fun parse(pos: Int) = parser?.invoke(pos) ?: throw ProxyParserNotSetException()
+
+    // NOTE: It doesn't initialize the embedded parser!
+    override fun init(s: String) { super.init(s) }
+}
+fun <A> proxy(): ProxyParser<A> = ProxyParser()
+
 fun char(c: Char): Parser<Char> = satp { it == c }
 val digit: Parser<Char> = satp { ('0'..'9').contains(it) }
 val alpha: Parser<Char> = satp {
@@ -166,14 +189,14 @@ val alphaOrDigit: Parser<Char> = alpha / digit
 
 fun List<Char>.toStr(): String = String(toCharArray())
 val symbol: Parser<String> =
-        (alpha + many0(alphaOrDigit)).map {
+        (alpha + many0(alphaOrDigit)) map {
             val sb = StringBuilder()
             sb.append(it.first)
             it.second.forEach { sb.append(it) }
             sb.toString()
         }
-val number: Parser<Int>    = many1(digit).map { it.toStr().toInt() }
-val word  : Parser<String> = many1(alpha).map { it.toStr() }
+val number: Parser<Int>    = many1(digit) map { it.toStr().toInt() }
+val word  : Parser<String> = many1(alpha) map { it.toStr() }
 
 fun <A, B, C> gparen(leftparen: Parser<A>, p: Parser<B>, rightparen: Parser<C>): Parser<B> =
         seqrp(leftparen, p) - rightparen
@@ -182,14 +205,14 @@ fun <A> cparen(p: Parser<A>): Parser<A> = gparen(litp("{"), p, litp("}"))
 
 val space : Parser<Char> =
         char(' ') / char('\n') / char('\t') /
-        (litp("\r\n").map { '\n' })
-val spaces: Parser<String> = many0(space).map { it.toStr() }
+        (litp("\r\n") map { '\n' })
+val spaces: Parser<String> = many0(space) map { it.toStr() }
 fun <A> sp(p: Parser<A>): Parser<A> = gparen(spaces, p, spaces)
 
 fun <A> leftAssocp(opp: Parser<String>, elemp: Parser<A>, f: (String, A, A) -> A): Parser<A> {
     val rightp = opp + elemp
     val rightLp: Parser<List<Pair<String, A>>> = many0(rightp)
-    return (elemp + rightLp).map { el ->
+    return (elemp + rightLp) map { el ->
         el.second.fold(el.first) { e, t -> f(t.first, e, t.second) }
     }
 }
