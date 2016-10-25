@@ -14,11 +14,11 @@ class LTest {
 
     @Test fun test01() {
         val parser = exprParser
-        Assert.assertEquals(Expr.Con(123), parser.get(" ( 123 ) "))
+        Assert.assertEquals(Expr.Con(123), parser.get("( 123 )"))
     }
     @Test fun test1() {
         val parser = exprParser
-        val result = parser.get("  x1z ")
+        val result = parser.get("x1z")
         Assert.assertEquals(Expr.Var("x1z"), result)
     }
 

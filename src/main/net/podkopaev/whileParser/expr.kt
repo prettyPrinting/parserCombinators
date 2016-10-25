@@ -61,11 +61,10 @@ fun generateExprParser(): Parser<Expr> {
 //    }
 
     val parserProxy = proxy<Expr>()
-    val corep = sp (
+    val corep =
             (number map { Expr.Con(it) as Expr }) /
             (symbol map { Expr.Var(it) as Expr }) /
-            paren(parserProxy)
-    )
+            paren( sp(parserProxy) )
     val op1p = corep //rightAssocp(sp(litp("^")), corep)
     val op2p = leftAssocp (sp(litp("*") / litp("/") / litp("%")), op1p) {
         op, e1, e2 ->

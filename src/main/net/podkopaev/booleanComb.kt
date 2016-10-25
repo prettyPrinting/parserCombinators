@@ -128,7 +128,7 @@ fun <A, B> seqlp(left: Parser<A>, right: Parser<B>): Parser<A> =
 fun <A, B> seqrp(left: Parser<A>, right: Parser<B>): Parser<B> =
         transp(seq(left, right)) { p -> p.second }
 
-class Many0Parser<A>(
+open class Many0Parser<A>(
         val parser: Parser<A>
 ): Parser<List<A>>() {
     override fun parse(pos: Int): List<Pair<Int, List<A>>> {
@@ -144,7 +144,6 @@ class Many0Parser<A>(
                 result.add(Pair(pt.first, v))
             }
         }
-
         return result
     }
 
@@ -160,6 +159,15 @@ fun <A> many1(parser: Parser<A>): Parser<List<A>> =
             v.add(aal.first)
             v.addAll(aal.second)
             v
+        }
+
+fun <A> eagerMany0(parser: Parser<A>): Parser<List<A>> =
+        object: Many0Parser<A>(parser) {
+            override fun parse(pos: Int): List<Pair<Int, List<A>>> {
+                val result = super.parse(pos)
+                val max = result.maxBy { it.first } ?: return listOf()
+                return listOf(max)
+            }
         }
 
 class ProxyParser<A>(): Parser<A>() {
@@ -206,7 +214,8 @@ fun <A> cparen(p: Parser<A>): Parser<A> = gparen(litp("{"), p, litp("}"))
 val space : Parser<Char> =
         char(' ') / char('\n') / char('\t') /
         (litp("\r\n") map { '\n' })
-val spaces: Parser<String> = many0(space) map { it.toStr() }
+val spaces: Parser<String> = eagerMany0(space) map { "" }
+
 fun <A> sp(p: Parser<A>): Parser<A> = gparen(spaces, p, spaces)
 
 fun <A> leftAssocp(opp: Parser<String>, elemp: Parser<A>, f: (String, A, A) -> A): Parser<A> {

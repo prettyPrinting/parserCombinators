@@ -65,28 +65,28 @@ sealed class Stmt() {
 }
 
 fun generateStmtParser(): Parser<Stmt> {
-    val readp   = sp(litp("read" )) seqr paren(sp(symbol))     map { Stmt.Read (it) as Stmt }
-    val writep  = sp(litp("write")) seqr paren(sp(exprParser)) map { Stmt.Write(it) as Stmt }
-    val assignp = (sp(symbol) seql sp(litp(":="))) + sp(exprParser) map { nameexpr ->
+    val readp   = litp("read" ) seqr spaces seqr paren(sp(symbol))     map { Stmt.Read (it) as Stmt }
+    val writep  = litp("write") seqr spaces seqr paren(sp(exprParser)) map { Stmt.Write(it) as Stmt }
+    val assignp = ((symbol seql spaces seql litp(":=") seql spaces) + exprParser) map { nameexpr ->
         Stmt.Assign(nameexpr.first, nameexpr.second) as Stmt
     }
 
     val parserProxy = proxy<Stmt>()
     val ifp =
-        (sp(litp("if"  )) seqr sp(exprParser )) +
-        (sp(litp("then")) seqr sp(parserProxy)) +
-        (sp(litp("else")) seqr sp(parserProxy)) - litp("fi") map {
+        (litp("if"  ) seqr spaces seqr exprParser  seql spaces) +
+        (litp("then") seqr spaces seqr parserProxy seql spaces) +
+        (litp("else") seqr spaces seqr parserProxy seql spaces) - litp("fi") map {
             ete -> Stmt.If(ete.first.first, ete.first.second, ete.second) as Stmt
         }
     val whilep =
-            (sp(litp("while")) seqr  sp(exprParser )) +
-            (sp(litp("do"   )) seqr  sp(parserProxy)) -
+            (litp("while") seqr spaces seqr sp(exprParser ) seql spaces) +
+            (litp("do"   ) seqr spaces seqr sp(parserProxy) seql spaces) -
             litp("od") map {
                 eb -> Stmt.While(eb.first, eb.second) as Stmt
             }
 
     val corep = sp(readp / writep / assignp / ifp / whilep)
-    val parser = leftAssocp(sp(litp(";")), corep) {
+    val parser = leftAssocp(litp(";"), corep) {
         op, s1, s2 ->
         Stmt.Seq(s1, s2)
     }
