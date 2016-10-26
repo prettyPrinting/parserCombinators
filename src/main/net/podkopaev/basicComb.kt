@@ -67,18 +67,6 @@ fun <A> disjp(left: Parser<A>, right: Parser<A>): Parser<A> = parser { input ->
     left(input) + right(input)
 }
 
-fun <A> conjp(left: Parser<A>, right: Parser<A>): Parser<A> = parser { input ->
-    val leftResult = left(input)
-    val rightResult = right(input)
-    val resultList = LinkedList<Pair<A, String>>()
-    for (p in leftResult) {
-        if(rightResult.contains(p)) {
-            resultList.add(p)
-        }
-    }
-    return@parser Result(resultList)
-}
-
 fun <A, B> seqlp(left: Parser<A>, right: Parser<B>): Parser<A> =
         combinep(left, right) { l, r -> l }
 

@@ -119,6 +119,7 @@ class SeqParser<A, B>(
         right.init(s)
     }
 }
+
 fun <A, B> seq(left: Parser<A>, right: Parser<B>): Parser<Pair<A, B>> =
         SeqParser(left, right)
 
@@ -230,7 +231,17 @@ class ConjParser<A, B>(
         val left: Parser<A>, val right: Parser<B>
 ): Parser<Pair<A, B>>() {
     override fun parse(pos: Int): List<Pair<Int, Pair<A, B>>> {
-        throw NotImplementedError()
+        val leftRes  = left(pos)
+        val rightRes = right(pos)
+        val result = ArrayList<Pair<Int, Pair<A, B>>>()
+        leftRes.forEach { lr ->
+            rightRes.forEach { rr ->
+                if (rr.second.toString() == lr.second.toString()) {
+                    result.add((Pair(lr.first, Pair(lr.second, rr.second))))
+                }
+            }
+        }
+        return result
     }
 
     override fun init(s: String) {
@@ -246,7 +257,17 @@ class ConjNotParser<A, B>(
         val left: Parser<A>, val right: Parser<B>
 ): Parser<A>() {
     override fun parse(pos: Int): List<Pair<Int, A>> {
-        throw NotImplementedError()
+        val leftRes  = left(pos)
+        val rightRes = right(pos)
+        val result = ArrayList<Pair<Int, A>>()
+        leftRes.forEach { lr ->
+            rightRes.forEach { rr ->
+                if (lr.second.toString() != rr.second.toString()) {
+                    result.add(Pair(lr.first, lr.second))
+                }
+            }
+        }
+        return result
     }
 
     override fun init(s: String) {
