@@ -59,4 +59,9 @@ class BooleanCombTest {
         val parser = conjNotp(alphaOrDigit, digit)
         Assert.assertEquals(null, parser.get("9"))
     }
+
+    @Test fun test9() {
+        val parser = conjNotp(alphaOrDigit, digit)
+        Assert.assertEquals('a', parser.get("a"))
+    }
 }
