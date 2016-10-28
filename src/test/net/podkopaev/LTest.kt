@@ -22,7 +22,6 @@ class LTest {
         Assert.assertEquals(Expr.Var("x1z"), result)
     }
 
-    /*
     @Test fun test2() {
         val parser = exprParser
         val result = parser.get("1 ^ 2 ^ 3")
@@ -30,7 +29,6 @@ class LTest {
                 Expr.Binop("^", Expr.Con(2), Expr.Con(3))),
                 result)
     }
-    */
 
     @Test fun test03() {
         val parser = exprParser

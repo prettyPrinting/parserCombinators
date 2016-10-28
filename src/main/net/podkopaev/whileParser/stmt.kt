@@ -64,23 +64,22 @@ sealed class Stmt() {
     abstract protected fun interpret_help(): List<Int>
 }
 
-fun generateStmtParser(): Parser<Stmt> {
+fun generateStmtParser(): Parser<Stmt> = fix {
     val readp   = litp("read" ) seqr spaces seqr paren(sp(symbol))     map { Stmt.Read (it) as Stmt }
     val writep  = litp("write") seqr spaces seqr paren(sp(exprParser)) map { Stmt.Write(it) as Stmt }
     val assignp = ((symbol seql spaces seql litp(":=") seql spaces) + exprParser) map { nameexpr ->
         Stmt.Assign(nameexpr.first, nameexpr.second) as Stmt
     }
 
-    val parserProxy = proxy<Stmt>()
     val ifp =
-        (litp("if"  ) seqr spaces seqr exprParser  seql spaces) +
-        (litp("then") seqr spaces seqr parserProxy seql spaces) +
-        (litp("else") seqr spaces seqr parserProxy seql spaces) - litp("fi") map {
+        (litp("if"  ) seqr spaces seqr exprParser seql spaces) +
+        (litp("then") seqr spaces seqr it         seql spaces) +
+        (litp("else") seqr spaces seqr it         seql spaces) - litp("fi") map {
             ete -> Stmt.If(ete.first.first, ete.first.second, ete.second) as Stmt
         }
     val whilep =
-            (litp("while") seqr spaces seqr sp(exprParser ) seql spaces) +
-            (litp("do"   ) seqr spaces seqr sp(parserProxy) seql spaces) -
+            (litp("while") seqr spaces seqr sp(exprParser) seql spaces) +
+            (litp("do"   ) seqr spaces seqr sp(it        ) seql spaces) -
             litp("od") map {
                 eb -> Stmt.While(eb.first, eb.second) as Stmt
             }
@@ -90,7 +89,6 @@ fun generateStmtParser(): Parser<Stmt> {
         op, s1, s2 ->
         Stmt.Seq(s1, s2)
     }
-    parserProxy.parser = parser
-    return parser
+    return@fix parser
 }
 val stmtParser: Parser<Stmt> = generateStmtParser()

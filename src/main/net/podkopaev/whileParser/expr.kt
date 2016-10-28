@@ -47,25 +47,12 @@ sealed class Expr() {
     abstract fun calc(env: Map<String, Int>): Int
 }
 
-fun generateExprParser(): Parser<Expr> {
-    // TODO: rewrite rightAssocp with booleanComb.
-//    fun rightAssocp(opp: Parser<String>, elemp: Parser<Expr>): Parser<Expr> = parser { input ->
-//        val emptyRightp: Parser<(Expr) -> Expr> =
-//                empty + { t -> { l: Expr -> l } }
-//        val rightp: Parser<Pair<String, Expr>> =
-//                combinep(opp, this) { op, e -> Pair(op, e) }
-//        val rightFp: Parser<(Expr) -> Expr> = rightp +
-//                { t -> { l: Expr -> Expr.Binop(t.first, l, t.second) }}
-//        val parser = combinep(elemp, rightFp / emptyRightp) { e, f -> f(e) }
-//        parser(input)
-//    }
-
-    val parserProxy = proxy<Expr>()
+fun generateExprParser(): Parser<Expr> = fix {
     val corep =
             (number map { Expr.Con(it) as Expr }) /
             (symbol map { Expr.Var(it) as Expr }) /
-            paren( sp(parserProxy) )
-    val op1p = corep //rightAssocp(sp(litp("^")), corep)
+            paren( sp(it) )
+    val op1p = rightAssocp(sp(litp("^")), corep) { l, op, r -> Expr.Binop(l, op, r) }
     val op2p = leftAssocp (sp(litp("*") / litp("/") / litp("%")), op1p) {
         op, e1, e2 ->
         Expr.Binop(op, e1, e2)
@@ -74,20 +61,7 @@ fun generateExprParser(): Parser<Expr> {
         op, e1, e2 ->
         Expr.Binop(op, e1, e2)
     }
-    parserProxy.parser = op3p
-    return op3p
+    return@fix op3p
 }
 
-fun simpleExprParser(): Parser<Expr> {
-    val parserProxy = proxy<Expr>()
-    val p1 = sp((number map { Expr.Con(it) as Expr }) /
-                (symbol map { Expr.Var(it) as Expr }) /
-                paren(parserProxy))
-    val p3 = leftAssocp (sp(litp("+")), p1) {
-        op, e1, e2 ->
-        Expr.Binop(op, e1, e2)
-    }
-    parserProxy.parser = p3
-    return p3
-}
 val exprParser: Parser<Expr> = generateExprParser()

@@ -49,6 +49,13 @@ internal fun <A> parser(parse: Parser<A>.(String) -> List<Pair<Int, A>>): Parser
         }
     }
 
+fun <A> fix(parser: (Parser<A>) -> Parser<A>): Parser<A> {
+    val parserProxy = proxy<A>()
+    val result = parser(parserProxy)
+    parserProxy.parser = result
+    return result
+}
+
 fun <A> conp(value: A): Parser<A> = parser {
     listOf(Pair(0, value))
 }
@@ -224,6 +231,10 @@ fun <A> leftAssocp(opp: Parser<String>, elemp: Parser<A>, f: (String, A, A) -> A
     return (elemp + rightLp) map { el ->
         el.second.fold(el.first) { e, t -> f(t.first, e, t.second) }
     }
+}
+
+fun <A> rightAssocp(opp: Parser<String>, elemp: Parser<A>, f: (String, A, A) -> A): Parser<A> = fix {
+    elemp / ((elemp + opp + it).map { f(it.first.second, it.first.first, it.second) })
 }
 
 class ConjParser<A, B>(
