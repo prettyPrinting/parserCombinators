@@ -236,7 +236,7 @@ class ConjParser<A, B>(
         val result = ArrayList<Pair<Int, Pair<A, B>>>()
         leftRes.forEach { lr ->
             rightRes.forEach { rr ->
-                if (rr.second.toString() == lr.second.toString()) {
+                if (rr.first == lr.first) {
                     result.add((Pair(lr.first, Pair(lr.second, rr.second))))
                 }
             }
