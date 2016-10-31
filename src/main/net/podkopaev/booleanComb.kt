@@ -265,7 +265,6 @@ class ConjNotParser<A, B>(
                 result.add(lr)
             }
         }
-
         return result
     }
 
