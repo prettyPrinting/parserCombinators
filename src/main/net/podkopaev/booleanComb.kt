@@ -263,7 +263,7 @@ class ConjNotParser<A, B>(
         if (rightRes.isEmpty()) {
             result.addAll(leftRes)
         } else {
-            leftRes.forEach { lr->
+            leftRes.forEach { lr ->
                 if (rightRes.find { it.first == lr.first } == null) {
                     result.add(lr)
                 }
