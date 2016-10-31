@@ -119,7 +119,6 @@ class SeqParser<A, B>(
         right.init(s)
     }
 }
-
 fun <A, B> seq(left: Parser<A>, right: Parser<B>): Parser<Pair<A, B>> =
         SeqParser(left, right)
 
@@ -237,7 +236,7 @@ class ConjParser<A, B>(
         leftRes.forEach { lr ->
             rightRes.forEach { rr ->
                 if (rr.first == lr.first) {
-                    result.add((Pair(lr.first, Pair(lr.second, rr.second))))
+                    result.add(Pair(lr.first, Pair(lr.second, rr.second)))
                 }
             }
         }
