@@ -261,16 +261,11 @@ class ConjNotParser<A, B>(
         val rightRes = right(pos)
         val result = ArrayList<Pair<Int, A>>()
         if (rightRes.isEmpty()) {
-            leftRes.forEach { lr ->
-                result.add(Pair(lr.first, lr.second))
-            }
-        }
-        else {
-            leftRes.forEach { lr ->
-                rightRes.forEach { rr ->
-                    if (lr.second.toString() != rr.second.toString()) {
-                        result.add(Pair(lr.first, lr.second))
-                    }
+            result.addAll(leftRes)
+        } else {
+            leftRes.forEach { lr->
+                if (rightRes.find { it.first == lr.first } == null) {
+                    result.add(lr)
                 }
             }
         }
