@@ -1,32 +1,38 @@
 package net.podkopaev.grammar.Example2
 
-import java.util.*
 import net.podkopaev.booleanComb.*
-/*
-/**
- * Conjunctive grammar for language {wcw}
+ /*
+ Conjunctive grammar for language { w c w | w in {a, b}* }
+ S -> C & D
+ C -> XCX | c
+ D -> aA & aD | bB & bD | cE
+ A -> XAX | cEa
+ B -> XBX | cEb
+ E -> XE  | epsilon
+ X -> a   | b
  */
 
-val epsilon: Parser<Char> = char('\u0000')
-val a = char('a')
-val b = char('b')
-val c = char('c')
+val a: Parser<Char> = char('a')
+val b: Parser<Char> = char('b')
+val c: Parser<Char> = char('c')
+val k: Parser<Char> = char('k')
 
-fun rParser2() = (
-        conjp(C(), D())
-        )
-fun D(): Parser<Char> = fix {
-    val r = conjp(seqrp(a, A()), seqrp(a, D())) / conjp(seqrp(b, B()), seqrp(b, D())) / seqrp(c, E())
-    return@fix r
+val pX: Parser<Char> = a / b
+val pC: Parser<Char> = fix { C ->
+    (pX seqr C seqr pX) / c
 }
-    fun A() : Parser<Char> = seqrp(X(), X1()) / seqrp(c, E1())
-    fun X1(): Parser<Char> = seqrp(A(), X())
-    fun E1(): Parser<Char> = seqrp(E(), A())
-    fun C() : Parser<Char> = seqrp(X(), C1()) / c
-    fun C1(): Parser<Char> = seqrp(C(), X())
-    fun E() : Parser<Char> = seqrp(X(), E()) / epsilon
-    fun B() : Parser<Char> = seqrp(X(), B1()) / seqrp(c, E2())
-    fun B1(): Parser<Char> = seqrp(B(), X())
-    fun E2(): Parser<Char> = seqrp(E(), b)
-    fun X() : Parser<Char> = a / b
-*/
+val pE: Parser<Char> = fix { E ->
+    (pX seqr E) / k
+}
+val pA: Parser<Char> = fix { A ->
+    (pX seqr A seqr pX) / (c seqr pE seqr a)
+}
+val pB: Parser<Char> = fix { B ->
+    (pX seqr B seqr pX) / (c seqr pE seqr b)
+}
+val pD: Parser<Char> = fix { D ->
+    transp(conjp(a seqr pA, a seqr D)) {p -> p.first} /
+            transp(conjp(b seqr pB, b seqr D)) {p  -> p.first} /
+            (c seqr pE)
+}
+val grParser = conjp(pC, pD)
