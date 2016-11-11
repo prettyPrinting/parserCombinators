@@ -1,33 +1,31 @@
 package net.podkopaev.grammar
 
-import java.util.*
 import net.podkopaev.booleanComb.*
 /*
 Conjunctive grammar for language {a^n b^n c^n}
+S  -> AB & DC           {a^i b^j c^k | j = k} &
+                        {a^i b^j c^k | i = j}
+A  -> aA  | epsilon     {a*}
+B  -> bBc | epsilon     {b^n c^n}
+C  -> cC  | epsilon     {c*}
+D  -> aDb | epsilon     {a^k b^k}
  */
 
-fun rParser() = (
-        conjp(seqrp(A(), B()), seqrp(D(), C()))
-        )
-
-val epsilon: Parser<Char> = char('\u0000')
 val a = char('a')
 val b = char('b')
 val c = char('c')
+val k = char('k')
 
-fun B() : Parser<Char> = seqrp(b, B1()) / epsilon
-fun B1(): Parser<Char> = seqrp(B(), c)
-fun D() : Parser<Char> = seqrp(a, D1()) / epsilon
-fun D1(): Parser<Char> = seqrp(D(), b)
-
-fun  A(): Parser<Char> = fix {
-    val r = seqrp(a, A()) / epsilon
-    return@fix r
+val pA: Parser<Char> = fix { A ->
+    (a seqr A) / k
 }
-
-fun C(): Parser<Char> = fix {
-    val r = seqrp(c, C()) / epsilon
-    return@fix r
+val pB: Parser<Char> = fix { B ->
+    (b seqr B seqr c) / k
 }
-
-
+val pC: Parser<Char> = fix { C ->
+    (c seqr C) / k
+}
+val pD: Parser<Char> = fix { D ->
+    (a seqr D seqr b) / k
+}
+val grParser = pA seqr pB // {a* k b ^n k c^n}
