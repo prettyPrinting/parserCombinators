@@ -1,4 +1,4 @@
-package net.podkopaev.grammar
+package net.podkopaev.grammar.Example1
 
 import net.podkopaev.booleanComb.*
 /*
