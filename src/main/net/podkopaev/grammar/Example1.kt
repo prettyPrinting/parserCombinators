@@ -14,18 +14,18 @@ D  -> aDb | epsilon     {a^k b^k}
 val a = char('a')
 val b = char('b')
 val c = char('c')
-val k = char('k')
+val epsilon = conp('e')
 
 val pA: Parser<Char> = fix { A ->
-    (a seqr A) / k
+    (a seqr A seqr a) / a / epsilon
 }
 val pB: Parser<Char> = fix { B ->
-    (b seqr B seqr c) / k
+    (b seqr B seqr c) / epsilon
 }
 val pC: Parser<Char> = fix { C ->
-    (c seqr C) / k
+    (c seqr C seqr c) / c / epsilon
 }
 val pD: Parser<Char> = fix { D ->
-    (a seqr D seqr b) / k
+    (a seqr D seqr b) / epsilon
 }
-val grParser = pA seqr pB // {a* k b ^n k c^n}
+val grParser = conjp(pA seqr pB, pD seqr pC)
