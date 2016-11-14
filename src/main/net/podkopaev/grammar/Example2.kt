@@ -8,7 +8,7 @@ import net.podkopaev.booleanComb.*
  D -> aA & aD | bB & bD | cE
  A -> XAX | cEa
  B -> XBX | cEb
- E -> XE  | epsilon
+ E -> XE  | eps
  X -> a   | b
  */
 

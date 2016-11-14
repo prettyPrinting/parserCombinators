@@ -5,27 +5,28 @@ import net.podkopaev.booleanComb.*
 Conjunctive grammar for language {a^n b^n c^n}
 S  -> AB & DC           {a^i b^j c^k | j = k} &
                         {a^i b^j c^k | i = j}
-A  -> aA  | epsilon     {a*}
-B  -> bBc | epsilon     {b^n c^n}
-C  -> cC  | epsilon     {c*}
-D  -> aDb | epsilon     {a^k b^k}
+A  -> aA  | eps     {a*}
+B  -> bBc | eps     {b^n c^n}
+
+D  -> aDb | eps     {a^k b^k}
+C  -> cC  | eps     {c*}
  */
 
-val a = char('a')
-val b = char('b')
-val c = char('c')
-val epsilon = conp('e')
+val a = char('a') map { 1 }
+val b = char('b') map { 1 }
+val c = char('c') map { 1 }
+val eps = conp('e') map { 0 }
 
-val pA: Parser<Char> = fix { A ->
-    (a seqr A seqr a) / a / epsilon
+val pA: Parser<Int> = fix { A -> eps / a / ((a seqr A seql a) map { it + 2 }) }
+val pB: Parser<Int> = fix { B -> eps     / ((b seqr B seql c) map { it + 1 }) }
+
+val pD: Parser<Int> = fix { D -> eps     / ((a seqr D seql b) map { it + 1 }) }
+val pC: Parser<Int> = fix { C -> eps / c / ((c seqr C seql c) map { it + 2 }) }
+
+fun createGrParser(): Parser<Int> {
+    return conjp(pA seqr pB, pD seqr pC) map {
+        if (it.first != it.second) { throw Exception("Not equal number of symbols!") }
+        it.first
+    }
 }
-val pB: Parser<Char> = fix { B ->
-    (b seqr B seqr c) / epsilon
-}
-val pC: Parser<Char> = fix { C ->
-    (c seqr C seqr c) / c / epsilon
-}
-val pD: Parser<Char> = fix { D ->
-    (a seqr D seqr b) / epsilon
-}
-val grParser = conjp(pA seqr pB, pD seqr pC)
+val grParser: Parser<Int> = createGrParser()
