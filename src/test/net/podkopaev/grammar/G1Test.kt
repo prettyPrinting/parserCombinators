@@ -2,6 +2,7 @@ package net.podkopaev.grammar
 
 import net.podkopaev.grammar.Example1.*
 
+import java.io.*
 import org.junit.Assert
 import org.junit.Test
 
@@ -71,5 +72,12 @@ class G1Test {
         val p = grParser
         val result = p.get("aaaaabbbbbcccc")
         Assert.assertNotEquals("c", result.toString())
+    }
+    // {a^n b^n c^n | n = 500}
+    @Test fun test11() {
+        val p = grParser
+        val str = File("src/test/net/podkopaev/grammar/data/E1_0.txt").readText(charset = Charsets.UTF_8)
+        val result = p.get(str)
+        Assert.assertEquals("(c, c)", result.toString())
     }
 }
