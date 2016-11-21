@@ -10,7 +10,7 @@ class G2Test {
     @Test fun test0() {
         val p = grParser
         val result = p.get("abaabbacabaabba")
-        Assert.assertEquals("(a, a)", result)
+        Assert.assertEquals("(a, a)", result.toString())
     }
     // {b^n c b^n | n = 5}
     @Test fun test1() {
