@@ -12,27 +12,24 @@ import net.podkopaev.booleanComb.*
  X -> a   | b
  */
 
-val a = char('a')
-val b = char('b')
-val c = char('c')
-val epsilon = conp('e')
+val a = char('a') map { 1 }
+val b = char('b') map { 1 }
+val c = char('c') map { -1 }
+val eps = conp('e') map { 0 }
 
-val pX: Parser<Char> = a / b
-val pC: Parser<Char> = fix { C ->
-    (pX seqr C seqr pX) / c
+val pX: Parser<Int> = a / b
+val pC: Parser<Int> = fix { C -> c   / (pX seqr C seql pX) map { it + 1 } }
+val pE: Parser<Int> = fix { E -> eps / pX / (pX seqr E seql pX) }
+
+val pA: Parser<Int> = fix { A -> (pX seqr A seql pX) / (c seqr pE seql a) }
+val pB: Parser<Int> = fix { B -> (pX seqr B seql pX) / (c seqr pE seql b) }
+
+val pD: Parser<Int> = fix { D -> (conjp(a seqr pA, a seqr D) map { 0 }) /
+        (conjp(b seqr pB, b seqr D) map { 0 }) / (c seqr pE)
 }
-val pE: Parser<Char> = fix { E ->
-    (pX seqr E seqr pX) / pX / epsilon
+fun createGrParser(): Parser<Int> {
+    return conjp(pC, pD) map {
+        it.first
+    }
 }
-val pA: Parser<Char> = fix { A ->
-    (pX seqr A seqr pX) / (c seqr pE seqr a)
-}
-val pB: Parser<Char> = fix { B ->
-    (pX seqr B seqr pX) / (c seqr pE seqr b)
-}
-val pD: Parser<Char> = fix { D ->
-    transp(conjp(a seqr pA, a seqr D)) { p -> p.first } /
-            transp(conjp(b seqr pB, b seqr D)) { p  -> p.first } /
-            (c seqr pE)
-}
-val grParser = conjp(pC, pD)
+val grParser: Parser<Int> = createGrParser()
