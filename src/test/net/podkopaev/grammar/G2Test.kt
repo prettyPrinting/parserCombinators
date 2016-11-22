@@ -1,33 +1,43 @@
 package net.podkopaev.grammar
 
 import net.podkopaev.grammar.Example2.*
-
+import java.util.*
 import org.junit.Assert
 import org.junit.Test
+import java.security.SecureRandom
 
 class G2Test {
-    // {lcl | l = (a | b)*}
+    // {w c w | |w| = n = 1}
     @Test fun test0() {
+        val n = 1
         val p = grParser
-        val result = p.get("abaabbacabaabba")
-        Assert.assertEquals("(a, a)", result.toString())
+        val str = getRandomString(n)
+        Assert.assertEquals(n, p.get(str))
     }
-    // {b^n c b^n | n = 5}
+    // {w c w | |w| = n = 5}
     @Test fun test1() {
+        val n = 5
         val p = grParser
-        val result = p.get("bbbbbcbbbbb")
-        Assert.assertEquals("(b, b)", result.toString())
+        val str = getRandomString(n)
+        Assert.assertEquals(n, p.get(str))
     }
-    // {a^n c a^n | n = 10}
+    // {w c w | |w| = n = 150}
     @Test fun test2() {
+        val n = 150
         val p = grParser
-        val result = p.get("aaaaaaaaaacaaaaaaaaaa")
-        Assert.assertEquals("(a, a)", result.toString())
+        val str = getRandomString(n)
+        Assert.assertEquals(n, p.get(str))
     }
-    // {lcw | l != w}
-    @Test fun test3() {
-        val p = grParser
-        val result = p.get("abacbab")
-        Assert.assertNotEquals("(b, b)", result.toString())
+    fun getRandomString(n: Int): String {
+        val r = Random()
+        val sb = StringBuilder()
+        for (j in 0..n - 1) {
+            if (r.nextBoolean()) {
+                sb.append("a")
+            } else {
+                sb.append("b")
+            }
+        }
+        return(sb.toString() + "c" + sb.toString())
     }
 }
