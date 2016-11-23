@@ -28,8 +28,6 @@ val pD: Parser<Int> = fix { D -> (conjp(a seqr pA, a seqr D) map { 0 }) /
         (conjp(b seqr pB, b seqr D) map { 0 }) / (c seqr pE)
 }
 fun createGrParser(): Parser<Int> {
-    return conjp(pC, pD) map {
-        it.first
-    }
+    return conjp(pC, pD) map { it.first }
 }
 val grParser: Parser<Int> = createGrParser()
