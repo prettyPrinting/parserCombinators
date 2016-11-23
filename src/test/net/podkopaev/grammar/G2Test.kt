@@ -27,6 +27,34 @@ class G2Test {
         val str = getRandomString(n)
         Assert.assertEquals(n, p.get(str))
     }
+    // {w c w | |w| = n = 87}
+    @Test fun test3() {
+        val n = 87
+        val p = grParser
+        val str = getRandomString(n)
+        Assert.assertEquals(n, p.get(str))
+    }
+    // {w c w | |w| = n = 111}
+    @Test fun test4() {
+        val n = 111
+        val p = grParser
+        val str = getRandomString(n)
+        Assert.assertEquals(n, p.get(str))
+    }
+    // {w c w | |w| = n = 207}
+    @Test fun test5() {
+        val n = 207
+        val p = grParser
+        val str = getRandomString(n)
+        Assert.assertEquals(n, p.get(str))
+    }
+    // {w c w | |w| = n = 500}
+    @Test fun test6() {
+        val n = 500
+        val p = grParser
+        val str = getRandomString(n)
+        Assert.assertEquals(n, p.get(str))
+    }
     fun getRandomString(n: Int): String {
         val r = Random()
         val sb = StringBuilder()
