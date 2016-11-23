@@ -48,9 +48,9 @@ class G2Test {
         val str = getRandomString(n)
         Assert.assertEquals(n, p.get(str))
     }
-    // {w c w | |w| = n = 500}
+    // {w c w | |w| = n = 250}
     @Test fun test6() {
-        val n = 500
+        val n = 250
         val p = grParser
         val str = getRandomString(n)
         Assert.assertEquals(n, p.get(str))
