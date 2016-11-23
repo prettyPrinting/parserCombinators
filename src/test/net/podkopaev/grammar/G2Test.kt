@@ -4,7 +4,6 @@ import net.podkopaev.grammar.Example2.*
 import java.util.*
 import org.junit.Assert
 import org.junit.Test
-import java.security.SecureRandom
 
 class G2Test {
     // {w c w | |w| = n = 1}
