@@ -1,6 +1,4 @@
-package net.podkopaev.grammar
-
-import net.podkopaev.grammar.Example1.*
+package net.podkopaev.grammar.Example1
 
 import org.junit.Assert
 import org.junit.Test
@@ -22,56 +20,48 @@ class G1Test {
     @Test fun test4() {
         generateTest(111)
     }
-    // {a^n b^n c^n | n = 290}
+    // {a^n b^n c^n | n = 217}
     @Test fun test5() {
-        assert(performanceTest(290) < 1.0)
-    }
-    // {a^n b^n c^n | n = 140}
-    @Test fun test6() {
-        assert(performanceTest(140) < 1.0)
-    }
-    // {a^n b^n c^n | n = 170}
-    @Test fun test7() {
-        assert(performanceTest(170) < 1.0)
+        generateTest(217)
     }
     // {a^n b^n c^n | n = 300}
-    @Test fun test8() {
-        assert(performanceTest(300) < 1.0)
+    @Test fun test6() {
+        generateTest(300)
+    }
+    // {a^n b^n c^n | n = 29}
+    @Test fun test7() {
+        assert(performanceTest(29) < 1.0)
     }
     // {a^n b^n c^n | n = 99}
-    @Test fun test9() {
+    @Test fun test8() {
         assert(performanceTest(99) < 1.0)
     }
-    // {a^n b^n c^n | n = 156}
+    // {a^n b^n c^n | n = 50}
+    @Test fun test9() {
+        assert(performanceTest(50) < 1.0)
+    }
+    // {a^n b^n c^n | n = 190}
     @Test fun test10() {
-        assert(performanceTest(156) < 1.0)
+        assert(performanceTest(190) < 1.0)
     }
-    // {a^n b^n c^n | n = 199}
+    // {a^n b^n c^n | n = 100}
     @Test fun test11() {
-        assert(performanceTest(199) < 1.0)
+        assert(performanceTest(100) < 1.0)
     }
-    // {a^n b^n c^n | n = 399}
-    @Test fun test12() {
-        assert(performanceTest(399) < 1.0)
-    }
-    // {a^n b^n c^n | n = 300}
-    @Test fun test13() {
-        assert(performanceTest(300) < 1.0)
-    }
-
     fun generateTest(n: Int) {
         val p = grParser
         val str = "a".repeat(n) + "b".repeat(n) + "c".repeat(n)
         Assert.assertEquals(n, p.get(str))
     }
-
     fun performanceTest(n: Int): Double {
+        val p = grParser
+        val str = "a".repeat(n) + "b".repeat(n) + "c".repeat(n)
         val startTime = System.nanoTime()
-        generateTest(n)
+        val res = p.get(str)
         val endTime = System.nanoTime()
+        Assert.assertEquals(n, res)
         val finalTime = (endTime - startTime) /
                 Math.pow(10.toDouble(), 9.toDouble())
-        print("Length: " + n * 3 + '\n'+ "Time: " + finalTime + '\n')
         return finalTime
     }
 }
