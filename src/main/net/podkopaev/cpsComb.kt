@@ -58,6 +58,21 @@ fun litp(str: String): Parser<String> = parser { pos ->
     }
 }
 
+fun satp(cond: (Char) -> Boolean): Parser<Char> = parser { pos ->
+    val substring = parseString!!.substring(pos)
+    if (substring.length < 1 || !cond(substring[0])) {
+        return@parser
+    }
+    for (k in klist) {
+        k.match(pos, pos + substring.length, substring[0])
+    }
+}
+
+fun char(c: Char): Parser<Char> = satp { it == c }
+val digit: Parser<Char> = satp { ('0'..'9').contains(it) }
+val alpha: Parser<Char> = satp {
+    ('a'..'z').contains(it) || ('A'..'Z').contains(it)
+}
 /*
 fun <A, B> transp(parser: Parser<A>, f: (A) -> B): Parser<B> = parser { pos ->
     parser.klist.add(
@@ -78,3 +93,13 @@ fun <A, B> transp(parser: Parser<A>, f: (A) -> B): Parser<B> = parser { pos ->
     parser(pos)
 }
 */
+
+
+
+
+
+
+
+
+
+
