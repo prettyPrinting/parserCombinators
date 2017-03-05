@@ -22,7 +22,7 @@ abstract class CPSResult<A> {
 
     fun <B> map(f: (A) -> B): Result<B> = result { k ->
         this(memo_k{ t -> k(f(t)) }) }
-    fun <B> flatMap(f: (A) -> Result<B>): Result<B> =
+    fun <B> (Result<Int>).flatMap(f: (Int) -> Result<B>): Result<B> =
             result{ k -> this(memo_k { t -> f(t)(k) })}
     fun <A> orElse(r: () -> Result<A>) = { }
 
@@ -57,6 +57,17 @@ abstract class MemoizedCPSResult<A> : CPSResult<A>() {
     }
 }
 
-abstract class Recognizers {
+abstract class Recognizers<A>() : CPSResult<A>() {
     val input: String? = null
+
+    fun terminal(t: String): (Int) -> Result<Int> = {
+        i -> if(input!!.startsWith(t, i)) success(i + t.length)
+        else failure()
+    }
+
+    fun epsilon(): (Int) -> Result<Int> = { i -> success(i) }
+
+    fun seq(r1: (Int) -> Result<Int>, r2: (Int) -> Result<Int>): (Int) -> Result<Int> = {
+        i -> r1(i).flatMap({ r2(i) })
+    }
 }
