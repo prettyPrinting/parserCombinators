@@ -32,12 +32,12 @@ abstract class CPSResult<A> {
 abstract class MemoizedCPS<A>: MemoizedCPSResult<A>() {
     fun <A> memo(f: (Int) -> Result<A>): (Int) -> Result<A>? {
         val table: MutableMap<Int, Result<A>> = HashMap()
-        return { i: Int -> table.getOrElse(i) { val v = memo_result({f(i)}); table.put(i, v) } }
+        return { i: Int -> table.getOrElse(i) { val v: Result<A> = memo_result({f(i)}); table.put(i, v) } }
     }
 }
 
 abstract class MemoizedCPSResult<A> : CPSResult<A>() {
-    fun <A> memo_result(res: () -> Result<A>): Result<A> {
+    fun <A> memo_result(res: ((A) -> Unit) -> Result<A>): Result<A> {
         val Rs: MutableList<A> = ArrayList()
         val Ks: MutableList<(A) -> Unit> = ArrayList()
         return result { k ->
