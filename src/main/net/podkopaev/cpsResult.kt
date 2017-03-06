@@ -48,7 +48,7 @@ abstract class MemoizedCPSResult<A> : CPSResult<A>() {
                         Rs += t; for (kt in Ks) kt(t)
                     }
                 }
-                //res(ki)
+                res(ki)
             } else {
                 Ks += k
                 for (t in Rs) k(t)
