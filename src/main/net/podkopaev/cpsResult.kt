@@ -24,7 +24,9 @@ abstract class CPSResult<A> {
         this(memo_k{ t -> k(f(t)) }) }
     fun <B> (Result<Int>).flatMap(f: (Int) -> Result<B>): Result<B> =
             result{ k -> this(memo_k { t -> f(t)(k) })}
-    fun <A> orElse(r: () -> Result<A>) = { }
+    fun <A> (Result<Int>).orElse(r: ((Int) -> Unit) -> Result<A>) = {
+        lazy { val v = r; result { k: (Int) -> Unit -> this(k); v(k) } }
+    }
 
     abstract operator fun  invoke(k: (A) -> Unit)
 }
@@ -58,7 +60,7 @@ abstract class MemoizedCPSResult<A> : CPSResult<A>() {
 }
 
 abstract class Recognizers<A>() : CPSResult<A>() {
-    val input: String? = null
+    var input: String? = null
 
     fun terminal(t: String): (Int) -> Result<Int> = {
         i -> if(input!!.startsWith(t, i)) success(i + t.length)
@@ -69,5 +71,9 @@ abstract class Recognizers<A>() : CPSResult<A>() {
 
     fun seq(r1: (Int) -> Result<Int>, r2: (Int) -> Result<Int>): (Int) -> Result<Int> = {
         i -> r1(i).flatMap({ r2(i) })
+    }
+
+    fun alt(r1: (Int) -> Result<Int>, r2: (Int) -> Result<Int>) = {
+        i: Int -> r1(i).orElse{ r2(i) }
     }
 }
