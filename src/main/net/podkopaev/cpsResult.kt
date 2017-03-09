@@ -3,6 +3,7 @@ package net.podkopaev.cpsResult
 import java.util.*
 
 typealias K<A> = (A) -> Unit
+typealias Recognizer = (Int) -> Result<Int>
 
 abstract class Result<A> {
     abstract operator fun  invoke(k: K<A>)
@@ -45,11 +46,11 @@ abstract class MemoizedCPS<A>: MemoizedCPSResult<A>() {
 abstract class MemoizedCPSResult<A> : CPSResult<A>() {
     fun <A> memo_result(res: (K<A>) -> Result<A>): Result<A> {
         val Rs: MutableList<A> = ArrayList()
-        val Ks: MutableList<(A) -> Unit> = ArrayList()
+        val Ks: MutableList<K<A>> = ArrayList()
         return result { k ->
             if (Ks.isEmpty()) {
                 Ks += k
-                val ki: (A) -> Unit = { t ->
+                val ki: K<A> = { t ->
                     if (!Rs.contains(t)) {
                         Rs += t; for (kt in Ks) kt(t)
                     }
@@ -63,21 +64,50 @@ abstract class MemoizedCPSResult<A> : CPSResult<A>() {
     }
 }
 
-abstract class Recognizers<A>() : CPSResult<A>() {
+abstract class Recognizers<A> : CPSResult<A>() {
     var input: String? = null
 
-    fun terminal(t: String): (Int) -> Result<Int> = {
+    fun terminal(t: String): Recognizer = {
         i -> if(input!!.startsWith(t, i)) success(i + t.length)
         else failure()
     }
 
-    fun epsilon(): (Int) -> Result<Int> = { i -> success(i) }
+    fun epsilon(): Recognizer = { i -> success(i) }
 
-    fun seq(r1: (Int) -> Result<Int>, r2: (Int) -> Result<Int>): (Int) -> Result<Int> = {
-        i -> r1(i).flatMap{ r2(i) }
+    fun seq(r1: Recognizer, r2: Recognizer): Recognizer = {
+        i -> r1(i).flatMap(r2)
     }
 
-    fun alt(r1: (Int) -> Result<Int>, r2: (Int) -> Result<Int>) = {
+    fun alt(r1: Recognizer, r2: Recognizer) = {
         i: Int -> r1(i).orElse{ r2(i) }
+    }
+    internal open fun init(s: String) {
+        input = s
+    }
+}
+
+abstract class Runnable {
+    abstract fun run(): Unit
+}
+class Call<A>(val k: (A) -> Unit, val t: A): Runnable() {
+    override fun run(): Unit = k(t)
+}
+class Seq<A>(val r: () -> (((A) -> Unit) -> Unit), val k: (A) -> Unit): Runnable() {
+    override fun run(): Unit = r(k)
+}
+class Alt<A>(val lhs: ((A) -> Unit) -> Unit, val k: (A) -> Unit,
+             val rhs: () -> ((A) -> Unit) -> Unit): Runnable() {
+    override fun run(): Unit {
+        Trampoline.jobs.push(Seq(rhs, k)); lhs(k)
+    }
+}
+object Trampoline {
+    var jobs: Deque<Runnable> = ArrayDeque<Runnable>()
+    fun <A> call(k: (A) -> Unit, t: A): Unit = Trampoline.jobs.push(Call(k, t))
+    fun <A> alt(lhs: ((A) -> Unit) -> Unit, k: (A) -> Unit,
+                rhs: () -> ((A) -> Unit) -> Unit): Unit =
+            Trampoline.jobs.push(Alt(lhs, k, rhs))
+    fun run(): Unit {
+        while(!jobs.isEmpty()) jobs.pop().run()
     }
 }
