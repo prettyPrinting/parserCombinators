@@ -29,8 +29,8 @@ abstract class CPSResult<A> {
     fun <B> (Result<Int>).flatMap(f: (Int) -> Result<B>): Result<B> =
             result{ k -> this(memo_k { t -> f(t)(k) })}
 
-    fun <A> (Result<Int>).orElse(r: (K<Int>) -> Result<A>) = {
-        lazy { val v = r; result { k: K<Int> -> this(k); v(k) } }
+    fun <A> (Result<A>).orElse(r: (Unit) -> Result<A>) = {
+        lazy { val v = r; result { k: K<A> -> this(k); v(Unit)(k) } }
     }
 
     abstract operator fun  invoke(k: K<A>)
@@ -44,7 +44,7 @@ abstract class MemoizedCPS<A>: MemoizedCPSResult<A>() {
 }
 
 abstract class MemoizedCPSResult<A> : CPSResult<A>() {
-    fun <A> memo_result(res: (K<A>) -> Result<A>): Result<A> {
+    fun <A> memo_result(res: (Unit) -> Result<A>): Result<A> {
         val Rs: MutableList<A> = ArrayList()
         val Ks: MutableList<K<A>> = ArrayList()
         return result { k ->
@@ -55,7 +55,8 @@ abstract class MemoizedCPSResult<A> : CPSResult<A>() {
                         Rs += t; for (kt in Ks) kt(t)
                     }
                 }
-                res(ki)
+                val r = ki
+                res(Unit)(ki)
             } else {
                 Ks += k
                 for (t in Rs) k(t)
@@ -92,11 +93,11 @@ abstract class Runnable {
 class Call<A>(val k: (A) -> Unit, val t: A): Runnable() {
     override fun run(): Unit = k(t)
 }
-class Seq<A>(val r: () -> (((A) -> Unit) -> Unit), val k: (A) -> Unit): Runnable() {
-    override fun run(): Unit = r(k)
+class Seq<A>(val r: (Unit) -> (((A) -> Unit) -> Unit), val k: (A) -> Unit): Runnable() {
+    override fun run(): Unit = r(Unit)(k)
 }
 class Alt<A>(val lhs: ((A) -> Unit) -> Unit, val k: (A) -> Unit,
-             val rhs: () -> ((A) -> Unit) -> Unit): Runnable() {
+             val rhs: (Unit) -> ((A) -> Unit) -> Unit): Runnable() {
     override fun run(): Unit {
         Trampoline.jobs.push(Seq(rhs, k)); lhs(k)
     }
@@ -105,7 +106,7 @@ object Trampoline {
     var jobs: Deque<Runnable> = ArrayDeque<Runnable>()
     fun <A> call(k: (A) -> Unit, t: A): Unit = Trampoline.jobs.push(Call(k, t))
     fun <A> alt(lhs: ((A) -> Unit) -> Unit, k: (A) -> Unit,
-                rhs: () -> ((A) -> Unit) -> Unit): Unit =
+                rhs: (Unit) -> ((A) -> Unit) -> Unit): Unit =
             Trampoline.jobs.push(Alt(lhs, k, rhs))
     fun run(): Unit {
         while(!jobs.isEmpty()) jobs.pop().run()
