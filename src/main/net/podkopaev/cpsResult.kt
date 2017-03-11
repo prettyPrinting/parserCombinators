@@ -3,62 +3,63 @@ package net.podkopaev.cpsResult
 import java.util.*
 
 typealias K<A> = (A) -> Unit
-typealias Recognizer = (Int) -> Result<Int>
+typealias Recognizer = (Int) -> CPSResult<Int>
 
-abstract class Result<A> {
-    abstract operator fun  invoke(k: K<A>)
-}
-
-abstract class CPSResult<A> {
-    fun <A> result(f: (K<A>) -> Unit) =
-            object : Result<A>() {
+abstract class CPSResult<A>: (((A) -> Unit) -> Unit) {
+    fun <A> result(f: (K<A>) -> Unit): CPSResult<A> =
+            object : CPSResult<A>() {
                 override fun invoke(k: K<A>) = f(k)
             }
 
-    fun <A> success(t: A): Result<A> = result { k -> k(t) }
-    fun <A> failure(): Result<A> = result { k -> { } }
+    fun <A> success(t: A): CPSResult<A> = result { k -> k(t) }
+    fun <A> failure(): CPSResult<A> = result { k -> { } }
 
     fun <A> memo_k(f: K<A>): K<A> {
         val s: HashSet<A> = HashSet()
         return { t -> if(!s.contains(t)) { s += t; f(t) } }
     }
 
-    fun <B> (Result<Int>).map(f: (Int) -> B): Result<B> = result { k ->
+    fun <B> (CPSResult<Int>).map(f: (Int) -> B): CPSResult<B> = result { k ->
         this(memo_k { t -> k(f(t)) }) }
 
-    fun <B> (Result<Int>).flatMap(f: (Int) -> Result<B>): Result<B> =
+    fun <B> (CPSResult<Int>).flatMap(f: (Int) -> CPSResult<B>): CPSResult<B> =
             result{ k -> this(memo_k { t -> f(t)(k) })}
 
-    fun <A> (Result<A>).orElse(r: () -> Result<A>) = {
-        lazy { val v = r; result { k: K<A> -> this(k); v()(k) } }
+    fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> = result {
+        k -> Trampoline.alt(this, k, rhs)
     }
 
-    abstract operator fun  invoke(k: K<A>)
+    override abstract operator fun  invoke(k: K<A>)
 }
 
 abstract class MemoizedCPS<A>: MemoizedCPSResult<A>() {
-    fun <A> memo(f: (Int) -> Result<A>): (Int) -> Result<A>? {
-        val table: MutableMap<Int, Result<A>> = HashMap()
-        return { i: Int -> table.getOrElse(i) { val v: Result<A> = memo_result({f(i)}); table.put(i, v) } }
+    fun <A> memo(f: (Int) -> CPSResult<A>): (Int) -> CPSResult<A>? {
+        val table: MutableMap<Int, CPSResult<A>> = HashMap()
+        return { i: Int -> table.getOrElse(i) { val v: CPSResult<A> = memo_result({f(i)}); table.put(i, v) } }
     }
 }
 
 abstract class MemoizedCPSResult<A> : CPSResult<A>() {
-    fun <A> memo_result(res: () -> Result<A>): Result<A> {
-        val Rs: MutableList<A> = ArrayList()
-        val Ks: MutableList<K<A>> = ArrayList()
-        return result { k ->
-            if (Ks.isEmpty()) {
-                Ks += k
-                val ki: K<A> = { t ->
-                    if (!Rs.contains(t)) {
-                        Rs += t; for (kt in Ks) kt(t)
+    fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
+        val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
+        var Rs: Set<A> = LinkedHashSet<A>()
+        return object : CPSResult<A>() {
+            override fun invoke(k: K<A>) {
+                if (Ks.isEmpty()) {
+                    Ks.push(k)
+                    val ki: K<A> = { t ->
+                        if (!Rs.contains(t)) {
+                            Rs += t
+                            val iter = Ks.iterator()
+                            while(iter.hasNext()) Trampoline.call(iter.next(), t)
+                        }
                     }
+                    res()(ki)
+                } else {
+                    Ks.push(k)
+                    val iter = Rs.iterator()
+                    while(iter.hasNext()) Trampoline.call(k, iter.next())
                 }
-                res()(ki)
-            } else {
-                Ks += k
-                for (t in Rs) k(t)
             }
         }
     }
@@ -101,6 +102,7 @@ class Alt<A>(val lhs: ((A) -> Unit) -> Unit, val k: (A) -> Unit,
         Trampoline.jobs.push(Seq(rhs, k)); lhs(k)
     }
 }
+
 object Trampoline {
     var jobs: Deque<Runnable> = ArrayDeque<Runnable>()
     fun <A> call(k: (A) -> Unit, t: A): Unit = Trampoline.jobs.push(Call(k, t))
