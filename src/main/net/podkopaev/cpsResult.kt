@@ -5,7 +5,7 @@ import java.util.*
 typealias K<A> = (A) -> Unit
 typealias Recognizer = (Int) -> CPSResult<Int>
 
-abstract class CPSResult<A>: (((A) -> Unit) -> Unit) {
+abstract class CPSResult<A>: ((K<A>) -> Unit) {
     fun <A> result(f: (K<A>) -> Unit): CPSResult<A> =
             object : CPSResult<A>() {
                 override fun invoke(k: K<A>) = f(k)
@@ -28,18 +28,6 @@ abstract class CPSResult<A>: (((A) -> Unit) -> Unit) {
     fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> = result {
         k -> Trampoline.alt(this, k, rhs)
     }
-
-    override abstract operator fun  invoke(k: K<A>)
-}
-
-abstract class MemoizedCPS<A>: MemoizedCPSResult<A>() {
-    fun <A> memo(f: (Int) -> CPSResult<A>): (Int) -> CPSResult<A>? {
-        val table: MutableMap<Int, CPSResult<A>> = HashMap()
-        return { i: Int -> table.getOrElse(i) { val v: CPSResult<A> = memo_result({f(i)}); table.put(i, v) } }
-    }
-}
-
-abstract class MemoizedCPSResult<A> : CPSResult<A>() {
     fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
         val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
         var Rs: Set<A> = LinkedHashSet<A>()
@@ -63,6 +51,14 @@ abstract class MemoizedCPSResult<A> : CPSResult<A>() {
             }
         }
     }
+
+    fun <A> memo(f: (Int) -> CPSResult<A>): (Int) -> CPSResult<A> {
+        val table: MutableMap<Int, CPSResult<A>> = HashMap()
+        return { i: Int -> val r = table.get(i)
+            if(r != null) r else memo_result { f(i) } }
+    }
+
+    override abstract operator fun  invoke(k: K<A>)
 }
 
 abstract class Recognizers<A> : CPSResult<A>() {
@@ -79,9 +75,9 @@ abstract class Recognizers<A> : CPSResult<A>() {
         i -> r1(i).flatMap(r2)
     }
 
-    fun alt(r1: Recognizer, r2: Recognizer) = {
-        i: Int -> r1(i).orElse{ r2(i) }
-    }
+    fun rule(r1: Recognizer, r2: Recognizer): Recognizer =
+        memo({i: Int -> r1(i).orElse{ r2(i) }})
+
     internal open fun init(s: String) {
         input = s
     }
