@@ -28,6 +28,14 @@ abstract class CPSResult<A>: ((K<A>) -> Unit) {
     fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> = result {
         k -> Trampoline.alt(this, k, rhs)
     }
+    fun <A> (CPSResult<A>).or(r: () -> CPSResult<A>): CPSResult<A> = result {
+        k -> this(k); r()(k)
+    }
+    /*
+    fun <A,B> fix(f: ((A) -> B) -> ((A) -> B)): Lazy<(A) -> B> {
+      return lazy { val p: (A) -> B = f{t: A -> p(t)}; p }
+    }
+    */
     fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
         val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
         var Rs: Set<A> = LinkedHashSet<A>()
@@ -38,22 +46,24 @@ abstract class CPSResult<A>: ((K<A>) -> Unit) {
                     val ki: K<A> = { t ->
                         if (!Rs.contains(t)) {
                             Rs += t
-                            val iter = Ks.iterator()
-                            while(iter.hasNext()) Trampoline.call(iter.next(), t)
+                            for (kt in Ks) kt(t)
+                            //val iter = Ks.iterator()
+                            //while(iter.hasNext()) Trampoline.call(iter.next(), t)
                         }
                     }
                     res()(ki)
                 } else {
                     Ks.push(k)
-                    val iter = Rs.iterator()
-                    while(iter.hasNext()) Trampoline.call(k, iter.next())
+                    for (t in Rs) k(t)
+                    //val iter = Rs.iterator()
+                    //while(iter.hasNext()) Trampoline.call(k, iter.next())
                 }
             }
         }
     }
 
-    fun <A> memo(f: (Int) -> CPSResult<A>): (Int) -> CPSResult<A> {
-        val table: MutableMap<Int, CPSResult<A>> = HashMap()
+    fun  memo(f: (Int) -> CPSResult<Int>): (Int) -> CPSResult<Int> {
+        val table: MutableMap<Int, CPSResult<Int>> = HashMap()
         return { i: Int -> val r = table.get(i)
             if(r != null) r else memo_result { f(i) } }
     }
@@ -75,25 +85,23 @@ abstract class Recognizers<A> : CPSResult<A>() {
         i -> r1(i).flatMap(r2)
     }
 
-    fun rule(r1: Recognizer, r2: Recognizer): Recognizer =
-        memo({i: Int -> r1(i).orElse{ r2(i) }})
+    fun rule(r1: Recognizer, r2: Recognizer): Recognizer = memo(
+            { i: Int -> r1(i).or{ r2(i) } }
+    )
 
     internal open fun init(s: String) {
         input = s
     }
 }
 
-abstract class Runnable {
-    abstract fun run(): Unit
-}
-class Call<A>(val k: (A) -> Unit, val t: A): Runnable() {
+class Call<A>(val k: (A) -> Unit, val t: A): Runnable {
     override fun run(): Unit = k(t)
 }
-class Seq<A>(val r: () -> (((A) -> Unit) -> Unit), val k: (A) -> Unit): Runnable() {
+class Seq<A>(val r: () -> (((A) -> Unit) -> Unit), val k: (A) -> Unit): Runnable {
     override fun run(): Unit = r()(k)
 }
 class Alt<A>(val lhs: ((A) -> Unit) -> Unit, val k: (A) -> Unit,
-             val rhs: () -> ((A) -> Unit) -> Unit): Runnable() {
+             val rhs: () -> ((A) -> Unit) -> Unit): Runnable {
     override fun run(): Unit {
         Trampoline.jobs.push(Seq(rhs, k)); lhs(k)
     }
