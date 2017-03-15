@@ -5,7 +5,7 @@ import java.util.*
 typealias K<A> = (A) -> Unit
 typealias Recognizer = (Int) -> CPSResult<Int>
 
-abstract class CPSResult<A>: ((K<A>) -> Unit) {
+abstract class CPSResult<A>: (K<A>) -> Unit {
     fun <A> result(f: (K<A>) -> Unit): CPSResult<A> =
             object : CPSResult<A>() {
                 override fun invoke(k: K<A>) = f(k)
@@ -14,23 +14,19 @@ abstract class CPSResult<A>: ((K<A>) -> Unit) {
     fun <A> success(t: A): CPSResult<A> = result { k -> k(t) }
     fun <A> failure(): CPSResult<A> = result { k -> { } }
 
-    fun <A> memo_k(f: K<A>): K<A> {
-        val s: HashSet<A> = HashSet()
+    fun memo_k(f: K<Int>): K<Int> {
+        val s: HashSet<Int> = HashSet()
         return { t -> if(!s.contains(t)) { s += t; f(t) } }
     }
 
-    fun <B> (CPSResult<Int>).map(f: (Int) -> B): CPSResult<B> = result { k ->
-        this(memo_k { t -> k(f(t)) }) }
+    fun <B> (CPSResult<Int>).map(f: (Int) -> B): CPSResult<B> =
+            result { k -> this(memo_k { t -> k(f(t)) }) }
 
     fun <B> (CPSResult<Int>).flatMap(f: (Int) -> CPSResult<B>): CPSResult<B> =
-            result{ k -> this(memo_k { t -> f(t)(k) })}
+            result { k -> this(memo_k { t -> f(t)(k) })}
 
-    fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> = result {
-        k -> Trampoline.alt(this, k, rhs)
-    }
-    fun <A> (CPSResult<A>).or(r: () -> CPSResult<A>): CPSResult<A> = result {
-        k -> this(k); r()(k)
-    }
+    fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> =
+            result { k -> Trampoline.alt(this, k, rhs) }
 
     fun <A,B> fix(f: ((A) -> B) -> ((A) -> B)): (A) -> B = { x -> f(fix(f))(x) }
 
@@ -44,17 +40,15 @@ abstract class CPSResult<A>: ((K<A>) -> Unit) {
                     val ki: K<A> = { t ->
                         if (!Rs.contains(t)) {
                             Rs += t
-                            for (kt in Ks) kt(t)
-                            //val iter = Ks.iterator()
-                            //while(iter.hasNext()) Trampoline.call(iter.next(), t)
+                            val iter = Ks.iterator()
+                            while(iter.hasNext()) Trampoline.call(iter.next(), t)
                         }
                     }
                     res()(ki)
                 } else {
                     Ks.push(k)
-                    for (t in Rs) k(t)
-                    //val iter = Rs.iterator()
-                    //while(iter.hasNext()) Trampoline.call(k, iter.next())
+                    val iter = Rs.iterator()
+                    while(iter.hasNext()) Trampoline.call(k, iter.next())
                 }
             }
         }
@@ -84,7 +78,7 @@ abstract class Recognizers<A> : CPSResult<A>() {
     }
 
     fun rule(r1: Recognizer, r2: Recognizer): Recognizer = memo(
-            { i: Int -> r1(i).or{ r2(i) } }
+            { i: Int -> r1(i).orElse{ r2(i) } }
     )
 
     internal open fun init(s: String) {
