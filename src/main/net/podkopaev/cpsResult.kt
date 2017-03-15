@@ -56,8 +56,7 @@ abstract class CPSResult<A>: (K<A>) -> Unit {
 
     fun  memo(f: (Int) -> CPSResult<Int>): (Int) -> CPSResult<Int> {
         val table: MutableMap<Int, CPSResult<Int>> = HashMap()
-        return { i: Int -> val r = table.get(i)
-            if(r != null) r else memo_result { f(i) } }
+        return { i: Int -> table.getOrPut(i) { memo_result { f(i) } }}
     }
 
     override abstract operator fun  invoke(k: K<A>)
