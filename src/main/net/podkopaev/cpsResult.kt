@@ -31,11 +31,9 @@ abstract class CPSResult<A>: ((K<A>) -> Unit) {
     fun <A> (CPSResult<A>).or(r: () -> CPSResult<A>): CPSResult<A> = result {
         k -> this(k); r()(k)
     }
-    /*
-    fun <A,B> fix(f: ((A) -> B) -> ((A) -> B)): Lazy<(A) -> B> {
-      return lazy { val p: (A) -> B = f{t: A -> p(t)}; p }
-    }
-    */
+
+    fun <A,B> fix(f: ((A) -> B) -> ((A) -> B)): (A) -> B = { x -> f(fix(f))(x) }
+
     fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
         val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
         var Rs: Set<A> = LinkedHashSet<A>()
