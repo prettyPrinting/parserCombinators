@@ -1,0 +1,66 @@
+package net.podkopaev.cpsResult
+
+import org.junit.Assert
+import org.junit.Test
+
+class CpsCombTest: Recognizers<Int>() {
+    override fun invoke(k: K<Int>) { }
+
+    @Test fun test1() {
+        val input = "x"
+        val p: Recognizer = terminal("x")
+        val result = parse(input, p)
+        Assert.assertEquals("success", result)
+    }
+    @Test fun test2() {
+        val input = "abcd"
+        val p: Recognizer = seq(seq(terminal("a"), terminal("b")),
+                                seq(terminal("c"), terminal("d")))
+        val result = parse(input, p)
+        Assert.assertEquals("success", result)
+    }
+    @Test fun test6() {
+        val input = "uuuuq"
+        val p: Recognizer = fix { e: Recognizer -> rule(seq(terminal("u"), e),
+                                                        terminal("q")) }
+        val result = parse(input, p)
+        Assert.assertEquals("success", result)
+    }
+
+     @Test fun test3() {
+         val input = "ar"
+         val p = rule(seq(terminal("a"), terminal("l")),
+                      seq(terminal("a"), terminal("r")))
+         val result = parse(input, p)
+         Assert.assertEquals("success", result)
+     }
+     @Test fun test4() {
+         val input = "++++x"
+         val p = fix { e: Recognizer -> rule(terminal("x"), seq(terminal("+"), e)) }
+         val result = parse(input, p)
+         Assert.assertEquals("success", result)
+     }
+    @Test fun test7() {
+        val input = "aaaaaaaaaa"
+        val p = fix { e: Recognizer -> rule(terminal("a"), seq(terminal("a"), e)) }
+        val result = parse(input, p)
+        Assert.assertEquals("success", result)
+    }
+     @Test fun test5() {
+         val input = "bbbbb"
+         // Left recursive rule.
+         val p = fix { s: Recognizer -> rule(terminal("b"), seq(s, terminal("b"))) }
+         //val result = parse(input, p)
+         //Assert.assertEquals("success", result)
+     }
+
+    fun parse(s: String, p: Recognizer): String {
+        init(s)
+        var result = ""
+        val k0: K<Int> = { x -> if (x == s.length) result = "success"
+                                else result = "fail" }
+        p(0)(k0)
+        Trampoline.run()
+        return result
+    }
+}
