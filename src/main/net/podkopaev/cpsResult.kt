@@ -19,17 +19,6 @@ abstract class CPSResult<A>: (K<A>) -> Unit {
         return { t -> if(!s.contains(t)) { s += t; f(t) } }
     }
 
-    fun <B> (CPSResult<Int>).map(f: (Int) -> B): CPSResult<B> =
-            result { k -> this(memo_k { t -> k(f(t)) }) }
-
-    fun <B> (CPSResult<Int>).flatMap(f: (Int) -> CPSResult<B>): CPSResult<B> =
-            result { k -> this(memo_k { t -> f(t)(k) })}
-
-    fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> =
-            result { k -> Trampoline.alt(this, k, rhs) }
-
-    fun <A,B> fix(f: ((A) -> B) -> ((A) -> B)): (A) -> B = { x -> f(fix(f))(x) }
-
     fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
         val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
         var Rs: Set<A> = LinkedHashSet<A>()
@@ -61,6 +50,17 @@ abstract class CPSResult<A>: (K<A>) -> Unit {
 
     override abstract operator fun  invoke(k: K<A>)
 }
+
+fun <B> (CPSResult<Int>).map(f: (Int) -> B): CPSResult<B> =
+        result { k -> this(memo_k { t -> k(f(t)) }) }
+
+fun <B> (CPSResult<Int>).flatMap(f: (Int) -> CPSResult<B>): CPSResult<B> =
+        result { k -> this(memo_k { t -> f(t)(k) })}
+
+fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> =
+        result { k -> Trampoline.alt(this, k, rhs) }
+
+fun <A,B> fix(f: ((A) -> B) -> ((A) -> B)): (A) -> B = { x -> f(fix(f))(x) }
 
 abstract class Recognizers<A> : CPSResult<A>() {
     var input: String? = null
