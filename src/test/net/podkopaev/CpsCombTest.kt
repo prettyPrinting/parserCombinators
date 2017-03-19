@@ -21,35 +21,35 @@ class CpsCombTest: Recognizers<Int>() {
     }
     @Test fun test6() {
         val input = "uuuuq"
-        val p: Recognizer = fix { e: Recognizer -> rule(seq(terminal("u"), e),
-                                                        terminal("q")) }
+        val p: Recognizer = fix { e: Recognizer -> seq(terminal("u"), e) /
+                                                   terminal("q") }
         val result = parse(input, p)
         Assert.assertEquals("success", result)
     }
 
      @Test fun test3() {
          val input = "ar"
-         val p = rule(seq(terminal("a"), terminal("l")),
-                      seq(terminal("a"), terminal("r")))
+         val p = seq(terminal("a"), terminal("l")) /
+                 seq(terminal("a"), terminal("r"))
          val result = parse(input, p)
          Assert.assertEquals("success", result)
      }
      @Test fun test4() {
          val input = "++++x"
-         val p = fix { e: Recognizer -> rule(terminal("x"), seq(terminal("+"), e)) }
+         val p = fix { e: Recognizer -> terminal("x") / seq(terminal("+"), e) }
          val result = parse(input, p)
          Assert.assertEquals("success", result)
      }
     @Test fun test7() {
         val input = "aaaaaaaaaa"
-        val p = fix { e: Recognizer -> rule(terminal("a"), seq(terminal("a"), e)) }
+        val p = fix { e: Recognizer -> terminal("a") / seq(terminal("a"), e) }
         val result = parse(input, p)
         Assert.assertEquals("success", result)
     }
      @Test fun test5() {
          val input = "bbbbb"
          // Left recursive rule.
-         val p = fix { s: Recognizer -> rule(terminal("b"), seq(s, terminal("b"))) }
+         val p = fix { s: Recognizer -> terminal("b") / seq(s, terminal("b")) }
          //val result = parse(input, p)
          //Assert.assertEquals("success", result)
      }

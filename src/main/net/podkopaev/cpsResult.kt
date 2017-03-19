@@ -65,6 +65,8 @@ fun <A,B> fix(f: ((A) -> B) -> ((A) -> B)): (A) -> B = { x -> f(fix(f))(x) }
 abstract class Recognizers<A> : CPSResult<A>() {
     var input: String? = null
 
+    operator fun (Recognizer).div (p: Recognizer): Recognizer = rule (this, p)
+
     fun terminal(t: String): Recognizer = {
         i -> if(input!!.startsWith(t, i)) success(i + t.length)
         else failure()
