@@ -60,8 +60,6 @@ fun <B> (CPSResult<Int>).flatMap(f: (Int) -> CPSResult<B>): CPSResult<B> =
 fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> =
         result { k -> Trampoline.alt(this, k, rhs) }
 
-fun <A,B> fix(f: ((A) -> B) -> ((A) -> B)): (A) -> B = { x -> f(fix(f))(x) }
-
 abstract class Recognizers<A> : CPSResult<A>() {
     var input: String? = null
 
@@ -85,6 +83,21 @@ abstract class Recognizers<A> : CPSResult<A>() {
     internal open fun init(s: String) {
         input = s
     }
+}
+
+val fix = { f: (Recognizer) -> Recognizer ->
+    class R(val rf: (R) -> Recognizer) {
+        var res: HashMap<R, Recognizer> = HashMap()
+        operator fun invoke(r: R): Recognizer {
+            val memoizedRes = res.get(r)
+            if (memoizedRes != null) return memoizedRes
+            val result = rf(r)
+            res.put(r, result)
+            return result
+        }
+    }
+    val g: (R) -> Recognizer = { r: R -> f({ arg -> r(r)(arg) }) }
+    g(R(g))
 }
 
 class Call<A>(val k: (A) -> Unit, val t: A): Runnable {
