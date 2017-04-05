@@ -1,4 +1,4 @@
-package net.podkopaev.cpsResult
+package net.podkopaev.cpsComb
 
 import org.junit.Assert
 import org.junit.Test

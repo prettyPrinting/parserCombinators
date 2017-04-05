@@ -1,4 +1,4 @@
-package net.podkopaev.cpsResult
+package net.podkopaev.cpsComb
 
 import java.util.*
 
