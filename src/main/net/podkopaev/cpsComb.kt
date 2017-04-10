@@ -2,6 +2,8 @@ package net.podkopaev.cpsComb
 
 import java.util.*
 
+class ProxyParserNotSetException(): Exception()
+
 typealias K<A> = (A) -> Unit
 typealias Recognizer = (Int) -> CPSResult<Int>
 
@@ -19,36 +21,36 @@ abstract class CPSResult<A>: (K<A>) -> Unit {
         return { t -> if(!s.contains(t)) { s += t; f(t) } }
     }
 
-    fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
-        val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
-        var Rs: Set<A> = LinkedHashSet<A>()
-        return object : CPSResult<A>() {
-            override fun invoke(k: K<A>) {
-                if (Ks.isEmpty()) {
-                    Ks.push(k)
-                    val ki: K<A> = { t ->
-                        if (!Rs.contains(t)) {
-                            Rs += t
-                            val iter = Ks.iterator()
-                            while(iter.hasNext()) Trampoline.call(iter.next(), t)
-                        }
+    override abstract operator fun  invoke(k: K<A>)
+}
+
+fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
+    val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
+    var Rs: Set<A> = LinkedHashSet<A>()
+    return object : CPSResult<A>() {
+        override fun invoke(k: K<A>) {
+            if (Ks.isEmpty()) {
+                Ks.push(k)
+                val ki: K<A> = { t ->
+                    if (!Rs.contains(t)) {
+                        Rs += t
+                        val iter = Ks.iterator()
+                        while(iter.hasNext()) Trampoline.call(iter.next(), t)
                     }
-                    res()(ki)
-                } else {
-                    Ks.push(k)
-                    val iter = Rs.iterator()
-                    while(iter.hasNext()) Trampoline.call(k, iter.next())
                 }
+                res()(ki)
+            } else {
+                Ks.push(k)
+                val iter = Rs.iterator()
+                while(iter.hasNext()) Trampoline.call(k, iter.next())
             }
         }
     }
+}
 
-    fun  memo(f: (Int) -> CPSResult<Int>): (Int) -> CPSResult<Int> {
-        val table: MutableMap<Int, CPSResult<Int>> = HashMap()
-        return { i: Int -> table.getOrPut(i) { memo_result { f(i) } }}
-    }
-
-    override abstract operator fun  invoke(k: K<A>)
+fun  memo(f: (Int) -> CPSResult<Int>): (Int) -> CPSResult<Int> {
+    val table: MutableMap<Int, CPSResult<Int>> = HashMap()
+    return { i: Int -> table.getOrPut(i) { memo_result { f(i) } }}
 }
 
 fun <B> (CPSResult<Int>).map(f: (Int) -> B): CPSResult<B> =
@@ -85,19 +87,23 @@ abstract class Recognizers<A> : CPSResult<A>() {
     }
 }
 
-val fix = { f: (Recognizer) -> Recognizer ->
-    class R(val rf: (R) -> Recognizer) {
-        var res: HashMap<R, Recognizer> = HashMap()
-        operator fun invoke(r: R): Recognizer {
-            val memoizedRes = res.get(r)
-            if (memoizedRes != null) return memoizedRes
-            val result = rf(r)
-            res.put(r, result)
-            return result
-        }
+class ProxyRecognizer(var recognizer: Recognizer?) : Recognizer {
+    override fun invoke(p1: Int): CPSResult<Int>  {
+        val recognizer = recognizer
+        return recognizer?.invoke(p1) ?: throw ProxyParserNotSetException()
     }
-    val g: (R) -> Recognizer = { r: R -> f({ arg -> r(r)(arg) }) }
-    g(R(g))
+}
+
+val plain_fix = { f : (Recognizer) -> Recognizer ->
+    val proxy = ProxyRecognizer(null)
+    val result = f (proxy)
+    proxy.recognizer = result
+    result
+}
+
+val fix = { f: (Recognizer) -> Recognizer ->
+    val mf = { p : Recognizer -> memo(f(p)) }
+    plain_fix(mf)
 }
 
 class Call<A>(val k: (A) -> Unit, val t: A): Runnable {
