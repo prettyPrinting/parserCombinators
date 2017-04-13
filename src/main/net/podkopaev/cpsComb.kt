@@ -2,8 +2,6 @@ package net.podkopaev.cpsComb
 
 import java.util.*
 
-class ProxyParserNotSetException(): Exception()
-
 typealias K<A> = (A) -> Unit
 typealias Recognizer = (Int) -> CPSResult<Int>
 
@@ -87,9 +85,9 @@ abstract class Recognizers<A> : CPSResult<A>() {
     }
 }
 
+class ProxyParserNotSetException(): Exception()
 class ProxyRecognizer(var recognizer: Recognizer?) : Recognizer {
     override fun invoke(p1: Int): CPSResult<Int>  {
-        val recognizer = recognizer
         return recognizer?.invoke(p1) ?: throw ProxyParserNotSetException()
     }
 }
