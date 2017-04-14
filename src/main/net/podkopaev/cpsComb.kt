@@ -6,7 +6,7 @@ typealias K<A> = (A) -> Unit
 //typealias Recognizer = (Int) -> CPSResult<Int>
 
 abstract class Recognizer: (Int) -> CPSResult<Int> {
-    var Ks: Set<K<Int>> = HashSet()
+    var Ks: ArrayList<K<Int>> = ArrayList()
     override abstract operator fun  invoke(k: Int): CPSResult<Int>
 }
 
@@ -118,10 +118,10 @@ class And() {
     var passedByp1: ArrayList<Int> = ArrayList()
     var passedByp2: ArrayList<Int> = ArrayList()
     constructor(p1: Recognizer, p2: Recognizer) : this() {
-        p1.Ks += {
+        p1.Ks.add {
             i -> passedByp1.add(i); if (passedByp2.contains(i)) success(i)
         }
-        p2.Ks += {
+        p2.Ks.add {
             i -> passedByp2.add(i); if (passedByp1.contains(i)) success(i)
         }
     }
