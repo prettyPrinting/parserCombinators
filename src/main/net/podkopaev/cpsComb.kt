@@ -115,14 +115,14 @@ val fix = { f: (Recognizer) -> Recognizer ->
 }
 
 class And() {
-    var passedByp1: Set<Int> = HashSet()
-    var passedByp2: Set<Int> = HashSet()
+    var passedByp1: ArrayList<Int> = ArrayList()
+    var passedByp2: ArrayList<Int> = ArrayList()
     constructor(p1: Recognizer, p2: Recognizer) : this() {
         p1.Ks += {
-            i -> passedByp1 += i; if (passedByp2.contains(i)) success(i)
+            i -> passedByp1.add(i); if (passedByp2.contains(i)) success(i)
         }
         p2.Ks += {
-            i -> passedByp2 += i; if (passedByp1.contains(i)) success(i)
+            i -> passedByp2.add(i); if (passedByp1.contains(i)) success(i)
         }
     }
 }
