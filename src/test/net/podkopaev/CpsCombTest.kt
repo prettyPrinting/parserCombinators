@@ -67,6 +67,24 @@ class CpsCombTest: Recognizers<Int>() {
         val result = parse(input, p)
         Assert.assertEquals("success", result)
     }
+    @Test fun test10() {
+        val n = 1000
+        val input = "a".repeat(n) + "b".repeat(n) + "c".repeat(n)
+
+        val a = terminal("a")
+        val b = terminal("b")
+        val c = terminal("c")
+
+        //Grammar for {a^n b^n c^n}
+        val pA = fix { A -> seq(a, A) / a }
+        val pB = fix { B -> seq(seq(b, B), c) / seq(b, c) }
+        val pC = fix { C -> seq(c, C) / c }
+        val pD = fix { D -> seq(seq(a, D), b) / seq(a, b) }
+        val p = and(seq(pA, pB), seq(pD, pC))
+
+        val res = parse(input, p)
+        Assert.assertEquals("success", res)
+    }
 
     fun parse(s: String, p: Recognizer): String {
         init(s)
