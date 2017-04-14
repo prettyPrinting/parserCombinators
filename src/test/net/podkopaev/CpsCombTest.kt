@@ -68,7 +68,7 @@ class CpsCombTest: Recognizers<Int>() {
         Assert.assertEquals("success", result)
     }
     @Test fun test10() {
-        val n = 1000
+        val n = 100
         val input = "a".repeat(n) + "b".repeat(n) + "c".repeat(n)
 
         val a = terminal("a")
