@@ -3,7 +3,17 @@ package net.podkopaev.cpsComb
 import java.util.*
 
 typealias K<A> = (A) -> Unit
-typealias Recognizer = (Int) -> CPSResult<Int>
+//typealias Recognizer = (Int) -> CPSResult<Int>
+
+abstract class Recognizer: (Int) -> CPSResult<Int> {
+    var Ks: Set<K<Int>> = HashSet()
+    override abstract operator fun  invoke(k: Int): CPSResult<Int>
+}
+
+fun parser(r: (Int) -> CPSResult<Int>): Recognizer =
+        object : Recognizer() {
+            override fun invoke(p: Int): CPSResult<Int> = r(p)
+        }
 
 abstract class CPSResult<A>: (K<A>) -> Unit {
     fun <A> result(f: (K<A>) -> Unit): CPSResult<A> =
@@ -46,9 +56,9 @@ fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
     }
 }
 
-fun  memo(f: (Int) -> CPSResult<Int>): (Int) -> CPSResult<Int> {
+fun  memo(f: (Int) -> CPSResult<Int>): Recognizer {
     val table: MutableMap<Int, CPSResult<Int>> = HashMap()
-    return { i: Int -> table.getOrPut(i) { memo_result { f(i) } }}
+    return parser{ i: Int -> table.getOrPut(i) { memo_result { f(i) } }}
 }
 
 fun <B> (CPSResult<Int>).map(f: (Int) -> B): CPSResult<B> =
@@ -65,14 +75,14 @@ abstract class Recognizers<A> : CPSResult<A>() {
 
     operator fun (Recognizer).div (p: Recognizer): Recognizer = rule (this, p)
 
-    fun terminal(t: String): Recognizer = {
+    fun terminal(t: String): Recognizer = parser{
         i -> if(input!!.startsWith(t, i)) success(i + t.length)
         else failure()
     }
 
-    fun epsilon(): Recognizer = { i -> success(i) }
+    fun epsilon(): Recognizer = parser{ i -> success(i) }
 
-    fun seq(r1: Recognizer, r2: Recognizer): Recognizer = {
+    fun seq(r1: Recognizer, r2: Recognizer): Recognizer = parser{
         i -> r1(i).flatMap(r2)
     }
 
@@ -86,7 +96,7 @@ abstract class Recognizers<A> : CPSResult<A>() {
 }
 
 class ProxyParserNotSetException(): Exception()
-class ProxyRecognizer(var recognizer: Recognizer?) : Recognizer {
+class ProxyRecognizer(var recognizer: Recognizer?) : Recognizer() {
     override fun invoke(p1: Int): CPSResult<Int>  {
         return recognizer?.invoke(p1) ?: throw ProxyParserNotSetException()
     }
@@ -103,6 +113,21 @@ val fix = { f: (Recognizer) -> Recognizer ->
     val mf = { p : Recognizer -> memo(f(p)) }
     plain_fix(mf)
 }
+
+class And() {
+    var passedByp1: Set<Int> = HashSet()
+    var passedByp2: Set<Int> = HashSet()
+    constructor(p1: Recognizer, p2: Recognizer) : this() {
+        p1.Ks += {
+            i -> passedByp1 += i; if (passedByp2.contains(i)) print("success")
+        }
+        p2.Ks += {
+            i -> passedByp2 += i; if (passedByp1.contains(i)) print("success")
+        }
+    }
+}
+
+fun and(p1: Recognizer, p2: Recognizer) = And(p1, p2)
 
 class Call<A>(val k: (A) -> Unit, val t: A): Runnable {
     override fun run(): Unit = k(t)
