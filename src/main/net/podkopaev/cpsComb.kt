@@ -16,14 +16,6 @@ fun parser(r: (Int) -> CPSResult<Int>): Recognizer =
         }
 
 abstract class CPSResult<A>: (K<A>) -> Unit {
-    fun <A> result(f: (K<A>) -> Unit): CPSResult<A> =
-            object : CPSResult<A>() {
-                override fun invoke(k: K<A>) = f(k)
-            }
-
-    fun <A> success(t: A): CPSResult<A> = result { k -> k(t) }
-    fun <A> failure(): CPSResult<A> = result { k -> { } }
-
     fun memo_k(f: K<Int>): K<Int> {
         val s: HashSet<Int> = HashSet()
         return { t -> if(!s.contains(t)) { s += t; f(t) } }
@@ -31,6 +23,14 @@ abstract class CPSResult<A>: (K<A>) -> Unit {
 
     override abstract operator fun  invoke(k: K<A>)
 }
+
+fun <A> result(f: (K<A>) -> Unit): CPSResult<A> =
+        object : CPSResult<A>() {
+            override fun invoke(k: K<A>) = f(k)
+        }
+
+fun <A> success(t: A): CPSResult<A> = result { k -> k(t) }
+fun <A> failure(): CPSResult<A> = result { k -> { } }
 
 fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
     val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
@@ -119,10 +119,10 @@ class And() {
     var passedByp2: Set<Int> = HashSet()
     constructor(p1: Recognizer, p2: Recognizer) : this() {
         p1.Ks += {
-            i -> passedByp1 += i; if (passedByp2.contains(i)) print("success")
+            i -> passedByp1 += i; if (passedByp2.contains(i)) success(i)
         }
         p2.Ks += {
-            i -> passedByp2 += i; if (passedByp1.contains(i)) print("success")
+            i -> passedByp2 += i; if (passedByp1.contains(i)) success(i)
         }
     }
 }
