@@ -3,25 +3,23 @@ package net.podkopaev.cpsComb
 import java.util.*
 
 typealias K<A> = (A) -> Unit
-//typealias Recognizer = (Int) -> CPSResult<Int>
 
-abstract class Recognizer: (Int) -> CPSResult<Int> {
-    var Ks: ArrayList<K<Int>> = ArrayList()
-    override abstract operator fun  invoke(pos: Int): CPSResult<Int>
+abstract class Recognizer<A>: (A) -> CPSResult<A> {
+    override abstract operator fun  invoke(p: A): CPSResult<A>
 }
 
-fun parser(r: (Int) -> CPSResult<Int>): Recognizer =
-        object : Recognizer() {
-            override fun invoke(pos: Int): CPSResult<Int> = r(pos)
+fun <A> parser(r: (A) -> CPSResult<A>): Recognizer<A> =
+        object : Recognizer<A>() {
+            override fun invoke(p: A): CPSResult<A> = r(p)
         }
 
 abstract class CPSResult<A>: (K<A>) -> Unit {
-    fun memo_k(f: K<Int>): K<Int> {
-        val s: HashSet<Int> = HashSet()
+    fun memo_k(f: K<A>): K<A> {
+        val s: HashSet<A> = HashSet()
         return { t -> if(!s.contains(t)) { s += t; f(t) } }
     }
 
-    override abstract operator fun  invoke(k: K<A>)
+    override abstract operator fun  invoke(k: K<A>) : Unit
 }
 
 fun <A> result(f: (K<A>) -> Unit): CPSResult<A> =
@@ -56,15 +54,15 @@ fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
     }
 }
 
-fun  memo(f: (Int) -> CPSResult<Int>): Recognizer {
-    val table: MutableMap<Int, CPSResult<Int>> = HashMap()
-    return parser{ i: Int -> table.getOrPut(i) { memo_result { f(i) } }}
+fun <A> memo(f: (A) -> CPSResult<A>): Recognizer<A> {
+    val table: MutableMap<A, CPSResult<A>> = HashMap()
+    return parser{ i: A -> table.getOrPut(i) { memo_result { f(i) } }}
 }
 
-fun <B> (CPSResult<Int>).map(f: (Int) -> B): CPSResult<B> =
+fun <A, B> (CPSResult<A>).map(f: (A) -> B): CPSResult<B> =
         result { k -> this(memo_k { t -> k(f(t)) }) }
 
-fun <B> (CPSResult<Int>).flatMap(f: (Int) -> CPSResult<B>): CPSResult<B> =
+fun <A, B> (CPSResult<A>).flatMap(f: (A) -> CPSResult<B>): CPSResult<B> =
         result { k -> this(memo_k { t -> f(t)(k) })}
 
 fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> =
@@ -73,21 +71,21 @@ fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> =
 abstract class Recognizers<A> : CPSResult<A>() {
     var input: String? = null
 
-    operator fun (Recognizer).div (p: Recognizer): Recognizer = rule (this, p)
+    operator fun (Recognizer<A>).div (p: Recognizer<A>): Recognizer<A> = rule (this, p)
 
-    fun terminal(t: String): Recognizer = parser{
+    fun terminal(t: String): Recognizer<Int> = parser{
         i -> if(input!!.startsWith(t, i)) success(i + t.length)
         else failure()
     }
 
-    fun epsilon(): Recognizer = parser { i -> success(i) }
+    fun epsilon(): Recognizer<Int> = parser { i -> success(i) }
 
-    fun seq(r1: Recognizer, r2: Recognizer): Recognizer = parser {
+    fun seq(r1: Recognizer<A>, r2: Recognizer<A>): Recognizer<A> = parser {
         i -> r1(i).flatMap(r2)
     }
 
-    fun rule(r1: Recognizer, r2: Recognizer): Recognizer = memo(
-            { i: Int -> r1(i).orElse{ r2(i) } }
+    fun rule(r1: Recognizer<A>, r2: Recognizer<A>): Recognizer<A> = memo(
+            { i: A -> r1(i).orElse{ r2(i) } }
     )
 
     internal open fun init(s: String) {
@@ -96,33 +94,33 @@ abstract class Recognizers<A> : CPSResult<A>() {
 }
 
 class ProxyParserNotSetException(): Exception()
-class ProxyRecognizer(var recognizer: Recognizer?) : Recognizer() {
-    override fun invoke(pos: Int): CPSResult<Int>  {
-        return recognizer?.invoke(pos) ?: throw ProxyParserNotSetException()
+class ProxyRecognizer<A> (var recognizer: Recognizer<A>?) : Recognizer<A>() {
+    override fun invoke(p: A): CPSResult<A>  {
+        return recognizer?.invoke(p) ?: throw ProxyParserNotSetException()
     }
 }
 
-val plain_fix = { f : (Recognizer) -> Recognizer ->
-    val proxy = ProxyRecognizer(null)
+fun <A> plain_fix(f : (Recognizer<A>) -> Recognizer<A>): Recognizer<A> {
+    val proxy = ProxyRecognizer<A>(null)
     val result = f (proxy)
     proxy.recognizer = result
-    result
+    return result
 }
 
-val fix = { f: (Recognizer) -> Recognizer ->
-    val mf = { p : Recognizer -> memo(f(p)) }
-    plain_fix(mf)
+fun <A> fix(f: (Recognizer<A>) -> Recognizer<A>) : Recognizer<A> {
+    val mf = { p : Recognizer<A> -> memo(f(p)) }
+    return plain_fix(mf)
 }
 
-class And(val p1: Recognizer, val p2: Recognizer) : Recognizer() {
-    override fun invoke(pos: Int): CPSResult<Int> {
-        val passedByp1: MutableSet<Int> = TreeSet()
-        val passedByp2: MutableSet<Int> = TreeSet()
-        val executed: MutableSet<Int> = TreeSet()
+class And <A> (val p1: Recognizer<A>, val p2: Recognizer<A>) : Recognizer<A>() {
+    override fun invoke(p: A): CPSResult<A> {
+        val passedByp1: MutableSet<A> = TreeSet()
+        val passedByp2: MutableSet<A> = TreeSet()
+        val executed: MutableSet<A> = TreeSet()
 
-        return object : CPSResult<Int>() {
-            override fun invoke(k: K<Int>) {
-                    p1(pos)({ res : Int ->
+        return object : CPSResult<A>() {
+            override fun invoke(k: K<A>) {
+                    p1(p)({ res: A ->
                         passedByp1.add(res)
                         if (passedByp2.contains(res) && !executed.contains(res)) {
                             k(res)
@@ -130,7 +128,7 @@ class And(val p1: Recognizer, val p2: Recognizer) : Recognizer() {
                         }
                     })
 
-                    p2(pos)({ res : Int ->
+                    p2(p)({ res  ->
                         passedByp2.add(res)
                         if (passedByp1.contains(res) && !executed.contains(res)) {
                             k(res)
@@ -141,7 +139,7 @@ class And(val p1: Recognizer, val p2: Recognizer) : Recognizer() {
     }
 }
 
-fun and(p1: Recognizer, p2: Recognizer): Recognizer = And(p1, p2)
+fun <A> and(p1: Recognizer<A>, p2: Recognizer<A>): Recognizer<A> = And(p1, p2)
 
 class Call<A>(val k: (A) -> Unit, val t: A): Runnable {
     override fun run(): Unit = k(t)
