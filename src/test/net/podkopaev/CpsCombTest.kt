@@ -3,9 +3,7 @@ package net.podkopaev.cpsComb
 import org.junit.Assert
 import org.junit.Test
 
-class CpsCombTest: Recognizers<Int>() {
-    override fun invoke(k: K<Int>) { }
-
+class CpsCombTest  {
     @Test fun test1() {
         val input = "x"
         val p = terminal("x")
@@ -105,7 +103,7 @@ class CpsCombTest: Recognizers<Int>() {
     }
 
     fun parse(s: String, p: Recognizer<Int>): String {
-        init(s)
+        p.init(s)
         var result = ""
         val k0: K<Int> = { x -> if (x == s.length) result = "success"
                                 else result = "fail" }
