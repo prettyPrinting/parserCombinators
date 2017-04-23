@@ -4,68 +4,33 @@ import org.junit.Assert
 import org.junit.Test
 
 class CpsCombTest  {
-    @Test fun test1() {
+    @Test fun testTerm() {
         val input = "x"
         val p = terminal("x")
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
+        val result = p.parse(input, p)
+        Assert.assertEquals(input, result)
     }
-    @Test fun test2() {
-        val input = "abcd"
-        val p = seq(seq(terminal("a"), terminal("b")),
-                                seq(terminal("c"), terminal("d")))
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
-    }
-    @Test fun test6() {
-        val input = "uuuuq"
-        val p = fix { e: Recognizer<Int> -> seq(terminal("u"), e) /
-                                                   terminal("q") }
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
-    }
-
-     @Test fun test3() {
-         val input = "ar"
-         val p = seq(terminal("a"), terminal("l")) /
-                 seq(terminal("a"), terminal("r"))
-         val result = parse(input, p)
-         Assert.assertEquals("success", result)
-     }
-     @Test fun test4() {
+     @Test fun testFix() {
          val input = "++++x"
-         val p = fix { e: Recognizer<Int> -> terminal("x") / seq(terminal("+"), e) }
-         val result = parse(input, p)
-         Assert.assertEquals("success", result)
+         val p = fix { e: Recognizer<Int> ->
+             transp(terminal("x")) { 0 } /
+                     transp(seq(terminal("+"), e))
+                        { p -> 1 + p.second}
+         }
+         val result = p.parse(input, p)
+         Assert.assertEquals(4, result)
      }
-    @Test fun test7() {
-        val input = "aaaaaaaaaa"
-        val p = fix { e: Recognizer<Int> -> terminal("a") / seq(terminal("a"), e) }
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
-    }
-     @Test fun test5() {
+
+     @Test fun testLeftRecursiveRule() {
          val input = "bbbbb"
          // Left recursive rule.
-         val p = fix { s: Recognizer<Int> -> terminal("b") / seq(s, terminal("b")) }
-         val result = parse(input, p)
-         Assert.assertEquals("success", result)
+         val p = fix { s: Recognizer<Int> -> transp(terminal("b")) { 1 } /
+                 transp(seq(s, terminal("b"))) { p -> 1 + p.first } }
+         val result = p.parse(input, p)
+         Assert.assertEquals(input.length, result)
      }
-    @Test fun test8() {
-        val input = "bbbbbcb"
-        // Left recursive rule.
-        val p = fix { s: Recognizer<Int> -> terminal("b") / seq(s, terminal("b")) }
-        val result = parse(input, p)
-        Assert.assertEquals("fail", result)
-    }
-    @Test fun test9() {
-        val input = "bbbbbb"
-        // Left recursive rule.
-        val p = fix { s: Recognizer<Int> -> terminal("b") / seq(s, s) }
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
-    }
-    @Test fun test10() {
+
+    @Test fun testGrammar() {
         val n = 100
         val input = "a".repeat(n) + "b".repeat(n) + "c".repeat(n)
 
@@ -74,41 +39,20 @@ class CpsCombTest  {
         val c = terminal("c")
 
         //Grammar for {a^n b^n c^n}
-        val pA = fix { A: Recognizer<Int> -> seq(a, A) / a }
-        val pB = fix { B: Recognizer<Int> -> seq(seq(b, B), c) / seq(b, c) }
-        val pC = fix { C: Recognizer<Int> -> seq(c, C) / c }
-        val pD = fix { D: Recognizer<Int> -> seq(seq(a, D), b) / seq(a, b) }
+        val pA = fix { A: Recognizer<Int> -> transp(a) { 1 } / transp(seq(a, A)) { p -> 1 + p.second } }
+        val pB = fix { B: Recognizer<Int> -> transp(seq(seq(b, B), c)) { p -> 1 + p.first.second } /
+                transp(seq(b, c)) { 1 } }
+        val pC = fix { C: Recognizer<Int> -> transp(seq(c, C)) { p -> 1 + p.second } / transp(c) { 1 } }
+        val pD = fix { D: Recognizer<Int> -> transp(seq(seq(a, D), b)) { p -> 1 + p.first.second } /
+                transp(seq(a, b)) { 1 } }
         val p = and(seq(pA, pB), seq(pD, pC))
 
-        val res = parse(input, p)
-        Assert.assertEquals("success", res)
-    }
-    @Test fun test11() {
-        val n = 100
-        val input = "a".repeat(n) + "b".repeat(n) + "c".repeat(n+1)
+        val grParser = transp(p, {
+            if (it.first != it.second) { throw Exception("Not equal number of symbols!") }
+            it.first
+        })
+        val res = grParser.parse(input, grParser)?.first
 
-        val a = terminal("a")
-        val b = terminal("b")
-        val c = terminal("c")
-
-        //Grammar for {a^n b^n c^n}
-        val pA = fix { A: Recognizer<Int> -> seq(a, A) / a }
-        val pB = fix { B: Recognizer<Int> -> seq(seq(b, B), c) / seq(b, c) }
-        val pC = fix { C: Recognizer<Int> -> seq(c, C) / c }
-        val pD = fix { D: Recognizer<Int> -> seq(seq(a, D), b) / seq(a, b) }
-        val p = and(seq(pA, pB), seq(pD, pC))
-
-        val res = parse(input, p)
-        Assert.assertEquals("fail", res)
-    }
-
-    fun parse(s: String, p: Recognizer<Int>): String {
-        p.init(s)
-        var result = ""
-        val k0: K<Int> = { x -> if (x == s.length) result = "success"
-                                else result = "fail" }
-        p(0)(k0)
-        Trampoline.run()
-        return result
+        Assert.assertEquals(n, res)
     }
 }

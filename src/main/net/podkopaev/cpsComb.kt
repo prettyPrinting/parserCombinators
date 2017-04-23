@@ -2,96 +2,155 @@ package net.podkopaev.cpsComb
 
 import java.util.*
 
-typealias K<A> = (A) -> Unit
+typealias K<A>         = (Int, A) -> Unit
+typealias CPSResult<A> = (K<A>)   -> Unit
 
-abstract class Recognizer<A>: (A) -> CPSResult<A> {
+class Call<A>(val k: K<A>, val pos: Int, val res: A) : Runnable {
+    override fun run(): Unit = k(pos, res)
+}
+class Seq<A>(val r: () -> CPSResult<A>, val k: K<A>) : Runnable {
+    override fun run(): Unit = r()(k)
+}
+class Alt<A>(
+        val lhs: CPSResult<A>, val rhs: () -> CPSResult<A>, val k: K<A>
+) : Runnable {
+    override fun run(): Unit {
+        Trampoline.jobs.push(Seq(rhs, k))
+        lhs(k)
+    }
+}
+
+object Trampoline {
+    var jobs: Deque<Runnable> = ArrayDeque<Runnable>()
+    fun <A> call(k: K<A>, pos: Int, res: A): Unit =
+            Trampoline.jobs.push(Call(k, pos, res))
+    fun <A> alt(lhs: CPSResult<A>, k: K<A>, rhs: () -> CPSResult<A>): Unit =
+            Trampoline.jobs.push(Alt(lhs, rhs, k))
+    fun run(): Unit {
+        while(!jobs.isEmpty()) jobs.pop().run()
+    }
+}
+
+abstract class Recognizer<A>: (Int) -> CPSResult<A> {
     var input: String? = null
-    override abstract operator fun  invoke(p: A): CPSResult<A>
+    override abstract operator fun  invoke(p: Int): CPSResult<A>
 
     internal open fun init(s: String) {
         input = s
     }
-}
-
-operator fun <A> (Recognizer<A>).div (p: Recognizer<A>): Recognizer<A> = rule (this, p)
-
-internal fun <A> parser(r: Recognizer<A>.(A) -> CPSResult<A>): Recognizer<A> =
-        object : Recognizer<A>() {
-            override fun invoke(p: A): CPSResult<A>  = r(p)
+    fun <A> parse(s: String, p: Recognizer<A>): A? {
+        p.init(s)
+        var result: A? = null
+        val k0: K<A> = { pos, res ->
+            if (pos == s.length) result = res
         }
-
-abstract class CPSResult<A>: (K<A>) -> Unit {
-    var input: String? = null
-    override abstract operator fun  invoke(k: K<A>) : Unit
-    internal open fun init(s: String) {
-        input = s
+        p(0)(k0)
+        Trampoline.run()
+        return result
     }
 }
 
 fun <A> memo_k(f: K<A>): K<A> {
-    val s: HashSet<A> = HashSet()
-    return { t -> if(!s.contains(t)) { s += t; f(t) } }
-}
-
-fun <A> result(f: (K<A>) -> Unit): CPSResult<A> =
-        object : CPSResult<A>() {
-            override fun invoke(k: K<A>) = f(k)
-        }
-
-fun <A> success(t: A): CPSResult<A> = result { k -> k(t) }
-fun <A> failure(): CPSResult<A> = result { k -> { } }
-
-fun <A> memo_result(res: () -> CPSResult<A>): CPSResult<A> {
-    val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
-    var Rs: Set<A> = LinkedHashSet<A>()
-    return object : CPSResult<A>() {
-        override fun invoke(k: K<A>) {
-            if (Ks.isEmpty()) {
-                Ks.push(k)
-                val ki: K<A> = { t ->
-                    if (!Rs.contains(t)) {
-                        Rs += t
-                        val iter = Ks.iterator()
-                        while(iter.hasNext()) Trampoline.call(iter.next(), t)
-                    }
-                }
-                res()(ki)
-            } else {
-                Ks.push(k)
-                val iter = Rs.iterator()
-                while(iter.hasNext()) Trampoline.call(k, iter.next())
-            }
+    val s = HashSet<Pair<Int, A>>()
+    return { p : Int, res : A ->
+        val pair = Pair(p, res)
+        if (!s.contains(pair)) {
+            s += pair
+            f(p, res)
         }
     }
 }
 
-fun <A> memo(f: Recognizer<A>): Recognizer<A> = Memo(f)
+fun <A> result(f: CPSResult<A>): CPSResult<A> = f
+
+fun <A> success(pos: Int, res: A): CPSResult<A> = result { k -> k(pos, res) }
+fun <A> failure()                : CPSResult<A> = result { }
+
+fun <A> memo_result(lazy_result: () -> CPSResult<A>): CPSResult<A> {
+    val Ks: Deque<K<A>> = ArrayDeque<K<A>>()
+    var Rs: Set<Pair<Int, A>> = LinkedHashSet<Pair<Int, A>>()
+
+    return { k ->
+            if (Ks.isEmpty()) {
+                Ks.push(k)
+                val ki: K<A> = { pos : Int, res : A ->
+                    val pair = Pair(pos, res)
+                    if (!Rs.contains(pair)) {
+                        Rs += pair
+                        val iter = Ks.iterator()
+                        while(iter.hasNext()) Trampoline.call(iter.next(), pos, res)
+                    }
+                }
+                lazy_result()(ki)
+            } else {
+                Ks.push(k)
+                val iter = Rs.iterator()
+                while (iter.hasNext()) {
+                    val (pos, res) = iter.next()
+                    Trampoline.call(k, pos, res)
+                }
+            }
+    }
+}
 
 class Memo<A>(val f: Recognizer<A>): Recognizer<A>() {
-    val table: MutableMap<A, CPSResult<A>> = HashMap()
-    override fun invoke(p: A): CPSResult<A> = table.getOrPut(p) { memo_result { f(p) } }
+    val table: MutableMap<Int, CPSResult<A>> = HashMap()
+
+    override fun invoke(p: Int): CPSResult<A> =
+            table.getOrPut(p) { memo_result { f(p) } }
+
     override fun init(s: String) {
         super.init(s)
         f.init(s)
     }
 }
+fun <A> memo(f: Recognizer<A>): Recognizer<A> = Memo(f)
 
-fun <A, B> (CPSResult<A>).map(f: (A) -> B): CPSResult<B> =
-        result { k -> this(memo_k { t -> k(f(t)) }) }
+operator fun <A> (Recognizer<A>).div (p: Recognizer<A>): Recognizer<A> = rule (this, p)
 
-fun <A, B> (CPSResult<A>).flatMap(f: (A) -> CPSResult<B>): CPSResult<B> =
-        result { k -> this(memo_k { t -> f(t)(k) })}
+internal fun <A> parser(r: Recognizer<A>.(Int) -> CPSResult<A>): Recognizer<A> =
+        object : Recognizer<A>() {
+            override fun invoke(p: Int): CPSResult<A>  = r(p)
+        }
 
 fun <A> (CPSResult<A>).orElse(rhs: () -> CPSResult<A>): CPSResult<A> =
         result { k -> Trampoline.alt(this, k, rhs) }
 
-fun <A> epsilon(): Recognizer<Int> = parser { i -> success(i) }
+class Top private constructor () {
+    companion object {
+        val top: Top = Top()
+    }
+}
+val eps: Recognizer<Top> = parser { i -> success(i, Top.top) }
 
-fun <A> seq(r1: Recognizer<A>, r2: Recognizer<A>): Recognizer<A> = SeqP(r1,r2)
+fun <A, B> (CPSResult<A>).map(f: (A) -> B): CPSResult<B> =
+        result { k ->
+            this(memo_k { pos, res -> k(pos, f(res)) })
+        }
 
-class SeqP<A>(val r1: Recognizer<A>, val r2: Recognizer<A>): Recognizer<A>() {
-    override fun invoke(p: A): CPSResult<A> {
-        return r1(p).flatMap(r2)
+class TransParser<A, B>(
+        val parser: Recognizer<A>, val f: (A) -> B
+): Recognizer<B>() {
+    override fun invoke(p: Int): CPSResult<B> =
+        parser(p).map(f)
+
+    override fun init(s: String) {
+        super.init(s)
+        parser.init(s)
+    }
+}
+fun <A, B> transp(parser: Recognizer<A>, f: (A) -> B): Recognizer<B> =
+        TransParser(parser, f)
+
+class SeqP<A, B>(val r1: Recognizer<A>, val r2: Recognizer<B>): Recognizer<Pair<A, B>>() {
+    override fun invoke(p: Int): CPSResult<Pair<A, B>> = { kpair : K<Pair<A, B>> ->
+        val r1res = r1(p)
+        r1res { pos, res1 ->
+            val r2res = r2(pos)
+            r2res { pos, res2 ->
+                kpair(pos, Pair(res1, res2))
+            }
+        }
     }
 
     override fun init(s: String) {
@@ -101,11 +160,12 @@ class SeqP<A>(val r1: Recognizer<A>, val r2: Recognizer<A>): Recognizer<A>() {
     }
 }
 
+fun <A, B> seq(r1: Recognizer<A>, r2: Recognizer<B>): Recognizer<Pair<A, B>> = SeqP(r1,r2)
+
 fun <A> rule(r1: Recognizer<A>, r2: Recognizer<A>): Recognizer<A> = memo(DisjP(r1, r2))
 
 class DisjP<A>(val r1: Recognizer<A>, val r2: Recognizer<A>): Recognizer<A>() {
-
-    override fun invoke(p: A): CPSResult<A> = r1(p).orElse{ r2(p) }
+    override fun invoke(p: Int): CPSResult<A> = r1(p).orElse{ r2(p) }
     override fun init(s: String) {
         super.init(s)
         r1.init(s)
@@ -115,7 +175,7 @@ class DisjP<A>(val r1: Recognizer<A>, val r2: Recognizer<A>): Recognizer<A>() {
 
 class ProxyParserNotSetException(): Exception()
 class ProxyRecognizer<A> (var recognizer: Recognizer<A>?) : Recognizer<A>() {
-    override fun invoke(p: A): CPSResult<A>  {
+    override fun invoke(p: Int): CPSResult<A>  {
         val parseStringVal = input
         if (parseStringVal != null) {
             init(parseStringVal)
@@ -139,29 +199,36 @@ fun <A> fix(f: (Recognizer<A>) -> Recognizer<A>) : Recognizer<A> {
     return plain_fix(mf)
 }
 
-class And <A> (val p1: Recognizer<A>, val p2: Recognizer<A>) : Recognizer<A>() {
-    override fun invoke(p: A): CPSResult<A> {
-        val passedByp1: MutableSet<A> = TreeSet()
-        val passedByp2: MutableSet<A> = TreeSet()
-        val executed: MutableSet<A> = TreeSet()
+class And <A, B> (val p1: Recognizer<A>, val p2: Recognizer<B>) : Recognizer<Pair<A, B>>() {
+    override fun invoke(p: Int): CPSResult<Pair<A, B>> {
+        val passedByp1: ArrayList<Pair<Int, A>> = ArrayList()
+        val passedByp2: ArrayList<Pair<Int, B>> = ArrayList()
+        val executed  : ArrayList<Pair<Int, Pair<A, B>>> = ArrayList()
 
-        return object : CPSResult<A>() {
-            override fun invoke(k: K<A>) {
-                    p1(p)({ res: A ->
-                        passedByp1.add(res)
-                        if (passedByp2.contains(res) && !executed.contains(res)) {
-                            k(res)
-                            executed.add(res)
-                        }
-                    })
+        return { k: K<Pair<A, B>> ->
+            p1(p)({ pos: Int, res: A ->
+                val pair1p = Pair(pos, res)
+                passedByp1.add(pair1p)
+                passedByp2.forEach { r ->
+                    if (pair1p.first == r.first) {
+                        val kpair = Pair(pair1p.second, r.second)
+                        k(pos, kpair)
+                        executed.add(Pair(pos, kpair))
+                    }
+                }
+            })
 
-                    p2(p)({ res  ->
-                        passedByp2.add(res)
-                        if (passedByp1.contains(res) && !executed.contains(res)) {
-                            k(res)
-                        }
-                    })
-            }
+            p2(p)({ pos: Int, res: B ->
+                val pair2p = Pair(pos, res)
+                passedByp2.add(pair2p)
+                passedByp1.forEach { r ->
+                    if (pair2p.first == r.first) {
+                        val kpair = Pair(r.second, pair2p.second)
+                        k(pos, kpair)
+                        executed.add(Pair(pos, kpair))
+                    }
+                }
+            })
         }
     }
     override fun init(s: String) {
@@ -171,45 +238,25 @@ class And <A> (val p1: Recognizer<A>, val p2: Recognizer<A>) : Recognizer<A>() {
     }
 }
 
-fun <A> and(p1: Recognizer<A>, p2: Recognizer<A>): Recognizer<A> = And(p1, p2)
+fun <A, B> and(p1: Recognizer<A>, p2: Recognizer<B>): Recognizer<Pair<A, B>> = And(p1, p2)
 
-fun terminal(t: String): Recognizer<Int> = parser {
-    i -> if (input!!.startsWith(t, i)) success(i + 1) else failure()
+fun terminal(t : String): Recognizer<String> = parser {
+    i -> if (input?.startsWith(t, i) ?: false) success(i + t.length, t) else failure()
 }
 
-fun satp(cond: (Char) -> Boolean): Recognizer<Int> = parser { i ->
-    if (cond(input!![i])) {
-        return@parser success(i + 1)
-    }
-    failure<Int>()
+fun satp(cond: (Char) -> Boolean): Recognizer<Char> = parser { i ->
+    val symbol = input?.get(i) ?: return@parser failure()
+    if (cond(symbol)) { return@parser success(i + 1, symbol) }
+    failure()
 }
+fun char(c: Char): Recognizer<Char> = satp { it == c }
+val space : Recognizer<Char> =
+        char(' ') / char('\n') / char('\t') /
+                transp(terminal("\r\n")) { '\n' }
+val spaces: Recognizer<Char> = fix { s -> space / transp(seq(space, s), {' '}) }
 
-val digit: Recognizer<Int> = satp { ('0'..'9').contains(it) }
-val alpha: Recognizer<Int> = satp {
+val digit: Recognizer<Char> = satp { ('0'..'9').contains(it) }
+val alpha: Recognizer<Char> = satp {
     ('a'..'z').contains(it) || ('A'..'Z').contains(it)
 }
-val alphaOrDigit: Recognizer<Int> = alpha / digit
-
-class Call<A>(val k: (A) -> Unit, val t: A): Runnable {
-    override fun run(): Unit = k(t)
-}
-class Seq<A>(val r: () -> (((A) -> Unit) -> Unit), val k: (A) -> Unit): Runnable {
-    override fun run(): Unit = r()(k)
-}
-class Alt<A>(val lhs: ((A) -> Unit) -> Unit, val k: (A) -> Unit,
-             val rhs: () -> ((A) -> Unit) -> Unit): Runnable {
-    override fun run(): Unit {
-        Trampoline.jobs.push(Seq(rhs, k)); lhs(k)
-    }
-}
-
-object Trampoline {
-    var jobs: Deque<Runnable> = ArrayDeque<Runnable>()
-    fun <A> call(k: (A) -> Unit, t: A): Unit = Trampoline.jobs.push(Call(k, t))
-    fun <A> alt(lhs: ((A) -> Unit) -> Unit, k: (A) -> Unit,
-                rhs: () -> ((A) -> Unit) -> Unit): Unit =
-            Trampoline.jobs.push(Alt(lhs, k, rhs))
-    fun run(): Unit {
-        while(!jobs.isEmpty()) jobs.pop().run()
-    }
-}
+val alphaOrDigit: Recognizer<Char> = alpha / digit
