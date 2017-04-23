@@ -38,6 +38,14 @@ abstract class Recognizer<A>: (Int) -> CPSResult<A> {
     internal open fun init(s: String) {
         input = s
     }
+
+    infix fun <B> map (f: (A) -> B )    : Recognizer<B>              = transp(this, f)
+    infix fun <B> seql(p: Recognizer<B>): Recognizer<A>              = seqlp (this, p)
+    infix fun <B> seqr(p: Recognizer<B>): Recognizer<B>              = seqrp (this, p)
+
+    operator fun <B> minus(p: Recognizer<B>): Recognizer<A>          = seqlp (this, p)
+    operator fun <B> plus (p: Recognizer<B>): Recognizer<Pair<A, B>> = seq   (this, p)
+
     fun <A> parse(s: String, p: Recognizer<A>): A? {
         p.init(s)
         var result: A? = null
@@ -199,7 +207,7 @@ fun <A> fix(f: (Recognizer<A>) -> Recognizer<A>) : Recognizer<A> {
     return plain_fix(mf)
 }
 
-class And <A, B> (val p1: Recognizer<A>, val p2: Recognizer<B>) : Recognizer<Pair<A, B>>() {
+class And<A, B> (val p1: Recognizer<A>, val p2: Recognizer<B>) : Recognizer<Pair<A, B>>() {
     override fun invoke(p: Int): CPSResult<Pair<A, B>> {
         val passedByp1: ArrayList<Pair<Int, A>> = ArrayList()
         val passedByp2: ArrayList<Pair<Int, B>> = ArrayList()
@@ -245,18 +253,96 @@ fun terminal(t : String): Recognizer<String> = parser {
 }
 
 fun satp(cond: (Char) -> Boolean): Recognizer<Char> = parser { i ->
+    if (i >= input?.length ?: -1 || i < 0) return@parser failure()
     val symbol = input?.get(i) ?: return@parser failure()
     if (cond(symbol)) { return@parser success(i + 1, symbol) }
     failure()
 }
+
+class Many0Parser<A>(
+        val parser: Recognizer<A>
+): Recognizer<List<A>>() {
+    override fun invoke(p: Int): CPSResult<List<A>> = { k ->
+        val result = ArrayList<Pair<Int, List<A>>>()
+        result.add(Pair(p, listOf()))
+        val res1 = parser(p)
+        res1({ p1, res1 ->
+            val res2 = this(p1)
+            result.add(Pair(p1, listOf(res1)))
+            res2({ p2, res2 ->
+                val v = LinkedList<A>()
+                v.add(res1)
+                v.addAll(res2)
+                result.add(Pair(p2, v))
+                result.forEach { t ->
+                    k(t.first, t.second)
+                }
+            })
+            result.forEach { t ->
+                k(t.first, t.second)
+            }
+        })
+    }
+
+    override fun init(s: String) {
+        super.init(s)
+        parser.init(s)
+    }
+}
+fun <A> many0(parser: Recognizer<A>): Recognizer<List<A>> = Many0Parser(parser)
+fun <A> many1(parser: Recognizer<A>): Recognizer<List<A>> =
+        transp(seq(parser, many0(parser))) { aal ->
+            val v = LinkedList<A>()
+            v.add(aal.first)
+            aal.second.forEach {
+                v.add(it)
+            }
+            return@transp v
+        }
+
 fun char(c: Char): Recognizer<Char> = satp { it == c }
 val space : Recognizer<Char> =
         char(' ') / char('\n') / char('\t') /
                 transp(terminal("\r\n")) { '\n' }
 val spaces: Recognizer<Char> = fix { s -> space / transp(seq(space, s), {' '}) }
 
+fun <A, B, C> gparen(leftparen: Recognizer<A>, p: Recognizer<B>, rightparen: Recognizer<C>): Recognizer<B> =
+        seqrp(leftparen, p) - rightparen
+
+fun <A> paren (p: Recognizer<A>): Recognizer<A> = gparen(terminal("("), p, terminal(")"))
+fun <A> cparen(p: Recognizer<A>): Recognizer<A> = gparen(terminal("{"), p, terminal("}"))
+fun <A> sp(p: Recognizer<A>)    : Recognizer<A> = gparen(spaces, p, spaces)
+
+fun List<Char>.toStr(): String     = String(toCharArray())
 val digit: Recognizer<Char> = satp { ('0'..'9').contains(it) }
 val alpha: Recognizer<Char> = satp {
     ('a'..'z').contains(it) || ('A'..'Z').contains(it)
 }
 val alphaOrDigit: Recognizer<Char> = alpha / digit
+val number: Recognizer<Int>        = many1(digit) map { it.toStr().toInt() }
+val word  : Recognizer<String>     = many1(alpha) map { it.toStr() }
+val symbol: Recognizer<String>     = seq(alpha, many0(alphaOrDigit)) map {
+            val sb = StringBuilder()
+            sb.append(it.first)
+            it.second.forEach { sb.append(it) }
+            sb.toString()
+        }
+fun <A> leftAssocp(opp: Recognizer<String>, elemp: Recognizer<A>,
+                   f: (String, A, A) -> A): Recognizer<A> {
+    val rightp = opp + elemp
+    val rightLp: Recognizer<List<Pair<String, A>>> = many0(rightp)
+    return (elemp + rightLp) map { el ->
+        el.second.fold(el.first) { e, t -> f(t.first, e, t.second) }
+    }
+}
+
+fun <A> rightAssocp(opp: Recognizer<String>, elemp: Recognizer<A>,
+                    f: (String, A, A) -> A): Recognizer<A> = fix {
+    elemp / ((elemp + opp + it).map { f(it.first.second, it.first.first, it.second) })
+}
+
+fun <A, B> seqlp(left: Recognizer<A>, right: Recognizer<B>): Recognizer<A> =
+        seq(left, right) map { p -> p.first }
+
+fun <A, B> seqrp(left: Recognizer<A>, right: Recognizer<B>): Recognizer<B> =
+        seq(left, right) map { p -> p.second }

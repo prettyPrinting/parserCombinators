@@ -2,6 +2,7 @@ package net.podkopaev.cpsComb
 
 import org.junit.Assert
 import org.junit.Test
+import net.podkopaev.whileParser.*
 
 class CpsCombTest  {
     @Test fun testTerm() {
@@ -29,6 +30,20 @@ class CpsCombTest  {
          val result = p.parse(input, p)
          Assert.assertEquals(input.length, result)
      }
+
+    @Test fun testNumber() {
+        val input = "123"
+        val p = number
+        val result = p.parse(input, p)
+        Assert.assertEquals(123, result)
+    }
+
+    @Test fun testSymbol() {
+        val input = "abcd"
+        val p = symbol
+        val result = p.parse(input, p)
+        Assert.assertEquals("abcd", result)
+    }
 
     @Test fun testGrammar() {
         val n = 100
