@@ -15,19 +15,22 @@ class Alt<A>(
         val lhs: CPSResult<A>, val rhs: () -> CPSResult<A>, val k: K<A>
 ) : Runnable {
     override fun run(): Unit {
-        Trampoline.jobs.push(Seq(rhs, k))
+        Trampoline.add(Seq(rhs, k))
         lhs(k)
     }
 }
 
 object Trampoline {
-    var jobs: Deque<Runnable> = ArrayDeque<Runnable>()
+    private var jobs: Deque<Runnable> = ArrayDeque<Runnable>()
     fun <A> call(k: K<A>, pos: Int, res: A): Unit =
             Trampoline.jobs.push(Call(k, pos, res))
     fun <A> alt(lhs: CPSResult<A>, k: K<A>, rhs: () -> CPSResult<A>): Unit =
             Trampoline.jobs.push(Alt(lhs, rhs, k))
     fun run(): Unit {
         while(!jobs.isEmpty()) jobs.pop().run()
+    }
+    fun add(r: Runnable): Unit {
+        jobs.push(r)
     }
 }
 
@@ -102,13 +105,14 @@ fun <A> memo_result(lazy_result: () -> CPSResult<A>): CPSResult<A> {
 }
 
 class Memo<A>(val f: Recognizer<A>): Recognizer<A>() {
-    val table: MutableMap<Int, CPSResult<A>> = HashMap()
+    var table: MutableMap<Int, CPSResult<A>> = HashMap()
 
     override fun invoke(p: Int): CPSResult<A> =
             table.getOrPut(p) { memo_result { f(p) } }
 
     override fun init(s: String) {
         super.init(s)
+        table = HashMap()
         f.init(s)
     }
 }
@@ -248,6 +252,39 @@ class And<A, B> (val p1: Recognizer<A>, val p2: Recognizer<B>) : Recognizer<Pair
 
 fun <A, B> and(p1: Recognizer<A>, p2: Recognizer<B>): Recognizer<Pair<A, B>> = And(p1, p2)
 
+class AndNot<A, B> (val p1: Recognizer<A>, val p2: Recognizer<B>) : Recognizer<A>() {
+    override fun invoke(p: Int): CPSResult<A> {
+        val passedByp1: ArrayList<Pair<Int, A>> = ArrayList()
+        val passedByp2: ArrayList<Pair<Int, B>> = ArrayList()
+        val executed  : ArrayList<Pair<Int, A>> = ArrayList()
+        return { k: K<A> ->
+            p2(p)({ pos: Int, res: B ->
+                val pair2p = Pair(pos, res)
+                passedByp2.add(pair2p)
+                passedByp1.forEach { r ->
+                    if (passedByp2.find { it.first == r.first } == null) {
+                        k(pos, r.second)
+                        executed.add(Pair(pos, r.second))
+                    }
+                }
+            })
+
+            p1(p)({ pos: Int, res: A ->
+                val pair1p = Pair(pos, res)
+                passedByp1.add(pair1p)
+                 k(pos, res)
+            })
+        }
+    }
+    override fun init(s: String) {
+        super.init(s)
+        p1.init(s)
+        p2.init(s)
+    }
+}
+
+fun <A, B> andNot(p1: Recognizer<A>, p2: Recognizer<B>): Recognizer<A> = AndNot(p1, p2)
+
 fun terminal(t : String): Recognizer<String> = parser {
     i -> if (input?.startsWith(t, i) ?: false) success(i + t.length, t) else failure()
 }
@@ -265,11 +302,12 @@ class Many0Parser<A>(
     override fun invoke(p: Int): CPSResult<List<A>> = { k ->
         val result = ArrayList<Pair<Int, List<A>>>()
         result.add(Pair(p, listOf()))
-        val res1 = parser(p)
-        res1({ p1, res1 ->
-            val res2 = this(p1)
+        val result1: CPSResult<A> = parser(p)
+
+        result1({ p1, res1 ->
             result.add(Pair(p1, listOf(res1)))
-            res2({ p2, res2 ->
+            val result2 = this(p1)
+            result2({ p2, res2 ->
                 val v = LinkedList<A>()
                 v.add(res1)
                 v.addAll(res2)
@@ -294,9 +332,7 @@ fun <A> many1(parser: Recognizer<A>): Recognizer<List<A>> =
         transp(seq(parser, many0(parser))) { aal ->
             val v = LinkedList<A>()
             v.add(aal.first)
-            aal.second.forEach {
-                v.add(it)
-            }
+            v.addAll(aal.second)
             return@transp v
         }
 
@@ -319,7 +355,7 @@ val alpha: Recognizer<Char> = satp {
     ('a'..'z').contains(it) || ('A'..'Z').contains(it)
 }
 val alphaOrDigit: Recognizer<Char> = alpha / digit
-val number: Recognizer<Int>        = many1(digit) map { it.toStr().toInt() }
+val number: Recognizer<Int>        = (digit map {it-> it.toString().toInt()}) / (many1(digit) map { it.toStr().toInt() })
 val word  : Recognizer<String>     = many1(alpha) map { it.toStr() }
 val symbol: Recognizer<String>     = seq(alpha, many0(alphaOrDigit)) map {
             val sb = StringBuilder()
@@ -338,7 +374,7 @@ fun <A> leftAssocp(opp: Recognizer<String>, elemp: Recognizer<A>,
 
 fun <A> rightAssocp(opp: Recognizer<String>, elemp: Recognizer<A>,
                     f: (String, A, A) -> A): Recognizer<A> = fix {
-    elemp / ((elemp + opp + it).map { f(it.first.second, it.first.first, it.second) })
+    elemp / ((elemp + opp + it) map { f(it.first.second, it.first.first, it.second) })
 }
 
 fun <A, B> seqlp(left: Recognizer<A>, right: Recognizer<B>): Recognizer<A> =
