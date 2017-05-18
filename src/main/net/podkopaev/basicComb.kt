@@ -3,16 +3,16 @@ package net.podkopaev
 import java.util.*
 
 class Result<A>(
-        private val list: List<Pair<A, String>>
-): Iterable<Pair<A, String>> {
+        private val list: List<Pair<List<A>, String>>
+): Iterable<Pair<List<A>, String>> {
     operator fun plus(right: Result<A>): Result<A> =
             Result(this.list + right.list)
 
-    override fun iterator(): Iterator<Pair<A, String>> = list.iterator()
+    override fun iterator(): Iterator<Pair<List<A>, String>> = list.iterator()
     fun empty(): Boolean = list.isEmpty()
 
     // Possible dangerous.
-    fun get(): Pair<A, String> = list[0]
+    fun get(): Pair<List<A>, String> = list[0]
 }
 
 interface Parser<A> {
@@ -27,7 +27,7 @@ interface Parser<A> {
     operator fun div(right: Parser<A>): Parser<A> =
             disjp(this, right)
 
-    fun get(input: String): A? {
+    fun get(input: String): List<A>? {
         val results = this(input)
         for (r in results) {
             if (!r.second.equals("")) { continue }
@@ -49,22 +49,36 @@ fun <A> parser(parse: Parser<A>.(String) -> Result<A>): Parser<A> =
         }
 
 fun <A> conp(value: A): Parser<A> = parser { input ->
-    Result(listOf(Pair(value, input)))
+    Result(listOf(Pair(listOf(value), input)))
 }
 
 fun litp(str: String): Parser<String> = parser { input ->
     if (!input.startsWith(str)) {
         return@parser Result(listOf())
     }
-    val resultPair = Pair(str, input.drop(str.length))
+    val resultPair = Pair(listOf(str), input.drop(str.length))
     return@parser Result(listOf(resultPair))
 }
 
 fun <A, B> transp(parser: Parser<A>, f: (A) -> B): Parser<B> =
-        bindp(parser) { conp(f(it)) }
+          bindp(parser) { conp(f(it)) }
 
 fun <A> disjp(left: Parser<A>, right: Parser<A>): Parser<A> = parser { input ->
     left(input) + right(input)
+}
+
+fun <A> conjp(left: Parser<A>, right: Parser<A>): Parser<A> = parser { input ->
+    val leftResult = left(input)
+    val rightResult = right(input)
+    val resultList = LinkedList<Pair<List<A>, String>>()
+    for (p in leftResult) {
+        for (r in rightResult) {
+            if (p.first.contains(r.first[0])) {
+                   resultList.add(Pair(p.first, p.second))
+            }
+        }
+    }
+    return@parser Result(resultList)
 }
 
 fun <A, B> seqlp(left: Parser<A>, right: Parser<B>): Parser<A> =
@@ -77,9 +91,11 @@ fun <A, B> bindp(left: Parser<A>, right: (A) -> Parser<B>): Parser<B> = parser {
     val leftResult = left(input)
     val resultList = LinkedList<Result<B>>()
     for (p in leftResult) {
-        val rParser = right(p.first)
-        val cp = rParser(p.second)
-        resultList.add(cp)
+        val rParsersList = p.first.map(right)
+            for (pr in rParsersList) {
+                val cp = pr(p.second)
+                resultList.add(cp)
+            }
     }
     return@parser Result(resultList.flatten())
 }
@@ -88,17 +104,17 @@ fun satp(cond: (Char) -> Boolean): Parser<Char> = parser { input ->
     if (input.length < 1 || !cond(input[0])) {
         return@parser Result(listOf())
     }
-    return@parser Result(listOf(Pair(input[0], input.drop(1))))
+    return@parser Result(listOf(Pair(listOf(input[0]), input.drop(1))))
 }
 
 fun <A, B, C> combinep(left: Parser<A>, right: Parser<B>, f: (A, B) -> C): Parser<C> = parser { input ->
     val leftResult = left(input)
-    val resultList = LinkedList<List<Pair<C, String>>>()
+    val resultList = LinkedList<List<Pair<List<C>, String>>>()
     for (p in leftResult) {
         val rightResult = right(p.second)
-        resultList.add(rightResult.map {
-            Pair(f(p.first, it.first), it.second)
-        })
+        for (r in rightResult) {
+            resultList.add(listOf(Pair(listOf(f(p.first[0], r.first[0])), r.second)))
+        }
     }
     return@parser Result(resultList.flatten())
 }
@@ -110,7 +126,7 @@ fun <A, B, C, D> combine3p(fst: Parser<A>, snd: Parser<B>, trd: Parser<C>, f: (A
         combinep(combinep(fst, snd) { x, y -> Pair(x, y) }, trd) { p, z -> f(p.first, p.second, z) }
 
 val empty: Parser<Top> = parser { input ->
-    Result(listOf(Pair(Top.top, input)))
+    Result(listOf(Pair(listOf(Top.top), input)))
 }
 
 //fun <A> many0(p: Parser<A>): Parser<List<A>> = many1(p) / (empty + { listOf<A>() })
@@ -119,8 +135,8 @@ val empty: Parser<Top> = parser { input ->
 //    parser(input)
 //}
 fun <A> many0(p: Parser<A>): Parser<List<A>> = parser { input ->
-    var stackToWork: Stack<Pair<MutableList<A>, String>> = Stack()
-    val finalResult: LinkedList<Pair<List<A>, String>> = LinkedList()
+    var stackToWork: Stack<Pair<MutableList<List<A>>, String>> = Stack()
+    val finalResult: LinkedList<Pair<List<List<A>>, String>> = LinkedList()
 
     stackToWork.push(Pair(LinkedList(), input))
     while (!stackToWork.empty()) {
@@ -138,7 +154,6 @@ fun <A> many0(p: Parser<A>): Parser<List<A>> = parser { input ->
         curList.add(pResult.first)
         stackToWork.push(Pair(curList, pResult.second))
     }
-
     return@parser Result(finalResult)
 }
 fun <A> many1(p: Parser<A>): Parser<List<A>> = combineListp(p, many0(p))
