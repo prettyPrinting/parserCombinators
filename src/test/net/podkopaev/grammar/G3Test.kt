@@ -36,11 +36,11 @@ class G3Test {
     }
     // {w w | |w| = 277, w in {a, b}*}
     @Test fun test8() {
-        assert(performanceTest(277) < 1.0)
+        performanceTest(277)
     }
     // {w w | |w| = 154, w in {a, b}*}
     @Test fun test9() {
-        assert(performanceTest(154) < 1.0)
+        performanceTest(154) < 1.0
     }
     // {w w | |w| = 21, w in {a, b}*}
     @Test fun test10() {
@@ -48,17 +48,17 @@ class G3Test {
     }
     // {w w | |w| = 108, w in {a, b}*}
     @Test fun test11() {
-        assert(performanceTest(106) < 1.0)
+        performanceTest(106) < 1.0
     }
     // {w w | |w| = 205, w in {a, b}*}
     @Test fun test12() {
-        assert(performanceTest(205) < 1.0)
+        performanceTest(205) < 1.0
     }
 
     fun generateTest(n: Int ) {
         val p = grParser
         val str = getRandomString(n)
-        Assert.assertEquals(n * 2, p.get(str))
+        Assert.assertEquals(n * 2, p.parse(str, p))
     }
     fun getRandomString(n: Int): String {
         val r = Random()
@@ -74,7 +74,7 @@ class G3Test {
         val p = grParser
         val str = getRandomString(n)
         val startTime = System.nanoTime()
-        val res = p.get(str)
+        val res = p.parse(str, p)
         val endTime = System.nanoTime()
         Assert.assertEquals(n * 2, res)
         val finalTime = (endTime - startTime) /

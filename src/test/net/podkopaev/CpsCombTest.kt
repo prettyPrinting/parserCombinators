@@ -3,78 +3,44 @@ package net.podkopaev.cpsComb
 import org.junit.Assert
 import org.junit.Test
 
-class CpsCombTest: Recognizers<Int>() {
-    override fun invoke(k: K<Int>) { }
-
-    @Test fun test1() {
+class CpsCombTest  {
+    @Test fun testTerm() {
         val input = "x"
-        val p: Recognizer = terminal("x")
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
+        val p = terminal("x")
+        val result = p.parse(input, p)
+        Assert.assertEquals(input, result)
     }
-    @Test fun test2() {
-        val input = "abcd"
-        val p: Recognizer = seq(seq(terminal("a"), terminal("b")),
-                                seq(terminal("c"), terminal("d")))
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
-    }
-    @Test fun test6() {
-        val input = "uuuuq"
-        val p: Recognizer = fix { e: Recognizer -> seq(terminal("u"), e) /
-                                                   terminal("q") }
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
-    }
-
-     @Test fun test3() {
-         val input = "ar"
-         val p = seq(terminal("a"), terminal("l")) /
-                 seq(terminal("a"), terminal("r"))
-         val result = parse(input, p)
-         Assert.assertEquals("success", result)
-     }
-     @Test fun test4() {
+     @Test fun testFix() {
          val input = "++++x"
-         val p = fix { e: Recognizer -> terminal("x") / seq(terminal("+"), e) }
-         val result = parse(input, p)
-         Assert.assertEquals("success", result)
+         val p = fix { e: Recognizer<Int> ->
+             transp(terminal("x")) { 0 } /
+                     transp(seq(terminal("+"), e))
+                        { p -> 1 + p.second}
+         }
+         val result = p.parse(input, p)
+         Assert.assertEquals(4, result)
      }
-    @Test fun test7() {
-        val input = "aaaaaaaaaa"
-        val p = fix { e: Recognizer -> terminal("a") / seq(terminal("a"), e) }
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
-    }
-     @Test fun test5() {
+
+     @Test fun testLeftRecursiveRule() {
          val input = "bbbbb"
          // Left recursive rule.
-         val p = fix ({ s -> terminal("b") / seq(s, terminal("b")) })
-         val result = parse(input, p)
-         Assert.assertEquals("success", result)
+         val p = fix { s: Recognizer<Int> -> transp(terminal("b")) { 1 } /
+                 transp(seq(s, terminal("b"))) { p -> 1 + p.first } }
+         val result = p.parse(input, p)
+         Assert.assertEquals(input.length, result)
      }
-    @Test fun test8() {
-        val input = "bbbbbcb"
-        // Left recursive rule.
-        val p = fix ({ s -> terminal("b") / seq(s, terminal("b")) })
-        val result = parse(input, p)
-        Assert.assertEquals("fail", result)
-    }
-    @Test fun test9() {
-        val input = "bbbbbb"
-        // Left recursive rule.
-        val p = fix ({ s -> terminal("b") / seq(s, s) })
-        val result = parse(input, p)
-        Assert.assertEquals("success", result)
+
+    @Test fun testNumber() {
+        val input = "123"
+        val p = number
+        val result = p.parse(input, p)
+        Assert.assertEquals(123, result)
     }
 
-    fun parse(s: String, p: Recognizer): String {
-        init(s)
-        var result = ""
-        val k0: K<Int> = { x -> if (x == s.length) result = "success"
-                                else result = "fail" }
-        p(0)(k0)
-        Trampoline.run()
-        return result
+    @Test fun testSymbol() {
+        val input = "abcd"
+        val p = symbol
+        val result = p.parse(input, p)
+        Assert.assertEquals("abcd", result)
     }
 }

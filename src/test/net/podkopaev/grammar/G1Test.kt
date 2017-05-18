@@ -42,22 +42,22 @@ class G1Test {
     }
     // {a^n b^n c^n | n = 190}
     @Test fun test10() {
-        assert(performanceTest(190) < 1.0)
+        assert(performanceTest(190) < 5.0)
     }
     // {a^n b^n c^n | n = 100}
     @Test fun test11() {
-        assert(performanceTest(100) < 1.0)
+        assert(performanceTest(100) < 2.0)
     }
     fun generateTest(n: Int) {
         val p = grParser
         val str = "a".repeat(n) + "b".repeat(n) + "c".repeat(n)
-        Assert.assertEquals(n, p.get(str))
+        Assert.assertEquals(n, p.parse(str, p))
     }
     fun performanceTest(n: Int): Double {
         val p = grParser
         val str = "a".repeat(n) + "b".repeat(n) + "c".repeat(n)
         val startTime = System.nanoTime()
-        val res = p.get(str)
+        val res = p.parse(str, p)
         val endTime = System.nanoTime()
         Assert.assertEquals(n, res)
         val finalTime = (endTime - startTime) /

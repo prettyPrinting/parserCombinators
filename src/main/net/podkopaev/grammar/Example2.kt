@@ -1,6 +1,6 @@
 package net.podkopaev.grammar.Example2
 
-import net.podkopaev.booleanComb.*
+import net.podkopaev.cpsComb.*
  /*
  Conjunctive grammar for language { wcw | w in {a, b}* }
  S -> C & D
@@ -12,22 +12,22 @@ import net.podkopaev.booleanComb.*
  X -> a   | b
  */
 
-val a = char('a') map { 1 }
-val b = char('b') map { 1 }
-val c = char('c') map { -1 }
-val eps = conp('e') map { 0 }
+val a = terminal("a") map { 1 }
+val b = terminal("b") map { 1 }
+val c = terminal("c") map { -1 }
+val e = eps map { 0 }
 
-val pX: Parser<Int> = a / b
-val pC: Parser<Int> = fix { C -> c   / (pX seqr C seql pX) map { it + 1 } }
-val pE: Parser<Int> = fix { E -> eps / pX / (pX seqr E seql pX) }
+val pX: Recognizer<Int> = a / b
+val pC: Recognizer<Int> = fix { C -> c   / (pX seqr C seql pX) map { it + 1 } }
+val pE: Recognizer<Int> = fix { E -> e / pX / (pX seqr E seql pX) }
 
-val pA: Parser<Int> = fix { A -> (pX seqr A seql pX) / (c seqr pE seql a) }
-val pB: Parser<Int> = fix { B -> (pX seqr B seql pX) / (c seqr pE seql b) }
+val pA: Recognizer<Int> = fix { A -> (pX seqr A seql pX) / (c seqr pE seql a) }
+val pB: Recognizer<Int> = fix { B -> (pX seqr B seql pX) / (c seqr pE seql b) }
 
-val pD: Parser<Int> = fix { D -> (conjp(a seqr pA, a seqr D) map { 0 }) /
-        (conjp(b seqr pB, b seqr D) map { 0 }) / (c seqr pE)
+val pD: Recognizer<Int> = fix { D -> (and(a seqr pA, a seqr D) map { 0 }) /
+        (and(b seqr pB, b seqr D) map { 0 }) / (c seqr pE)
 }
-fun createGrParser(): Parser<Int> {
-    return conjp(pC, pD) map { it.first }
+fun createGrParser(): Recognizer<Int> {
+    return and(pC, pD) map { it.first }
 }
-val grParser: Parser<Int> = createGrParser()
+val grParser: Recognizer<Int> = createGrParser()
