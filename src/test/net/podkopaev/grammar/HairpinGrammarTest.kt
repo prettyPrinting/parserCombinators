@@ -1,9 +1,9 @@
-package net.podkopaev.grammar.RNAgrammar
+package net.podkopaev.grammar.HairpinGrammar
 
 import org.junit.Assert
 import org.junit.Test
 
-class RNAgrammarTest {
+class HairpinGrammarTest {
     @Test fun test1() {
         val p = pS
         val inp = "aaagaaauuu"

@@ -34,13 +34,30 @@ val assignp: Recognizer<Stmt> = fix {
     }
 }
 
+val ifp:Recognizer<Stmt> = fix {
+    (terminal("if") seqr spaces seqr exprParser seql spaces) +
+            (terminal("then") seqr spaces seqr it seql spaces) +
+            (terminal("else") seqr spaces seqr it seql spaces) - terminal("fi") map
+            { ete ->
+                Stmt.If(ete.first.first, ete.first.second, ete.second) as Stmt
+            }
+}
+val whilep: Recognizer<Stmt> = fix {
+    (terminal("while") seqr spaces seqr sp(exprParser) seql spaces) +
+            (terminal("do") seqr spaces seqr sp(it) seql spaces) -
+            terminal("od") map {
+        eb ->
+        Stmt.While(eb.first, eb.second) as Stmt
+    }
+}
+
 val corepp: Recognizer<Stmt> =  writep / assignp / readp
 
 val stmtParser: Recognizer<Stmt> =
-    rightAssocpTest(terminal(";"), corepp) {
+    rightAssocpp(terminal(";"), corepp) {
         op, s1, s2 -> Stmt.Seq(s1, s2)
     }
-fun <A> rightAssocpTest(opp: Recognizer<String>, elemp: Recognizer<A>,
-                    f: (String, A, A) -> A): Recognizer<A> = fix {
-    elemp / ((elemp + opp + elemp) map { f(it.first.second, it.first.first, it.second) })
+fun <A> rightAssocpp(opp: Recognizer<String>, elemp: Recognizer<A>,
+                    f: (String, A, A) -> A): Recognizer<A> = fix { P ->
+    elemp / ((elemp + opp + P) map { f(it.first.second, it.first.first, it.second) })
 }

@@ -1,4 +1,4 @@
-package net.podkopaev.grammar.RNAgrammar
+package net.podkopaev.grammar.HairpinGrammar
 
 import net.podkopaev.cpsComb.*
 /**
@@ -28,5 +28,3 @@ val pW1: Recognizer<Int> = (seq(seq(a, pW2), u) map pl) / (seq(seq(c, pW2), g) m
 
 val pS: Recognizer<Int> = (seq(seq(a, pW1), u) map pl) / (seq(seq(c, pW1), g) map pl) /
         (seq(seq(g, pW1), c) map pl) / (seq(seq(u, pW1), a) map pl)
-
-

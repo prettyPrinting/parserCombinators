@@ -70,8 +70,8 @@ class LCpsParserTest {
 
     @Test fun test10() {
         val parser = stmtParser
-        val result = parser.parse("x := 3;write ( 5 )", parser)
-        Assert.assertEquals(listOf(5), result?.interpret(listOf()))
+        val result = parser.parse("x := 3;write ( 5 );write ( 10 )", parser)
+        Assert.assertEquals(listOf(5, 10), result?.interpret(listOf()))
     }
 
     @Test fun test11() {
