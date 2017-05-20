@@ -94,8 +94,8 @@ class LCpsParserTest {
 
     @Test fun test14() {
         val parser = stmtParser
-        val program = "if ( k % 2 ) then k := 0 else k := 1;write ( k ) fi"
+        val program = "read ( k );if ( k % 2 ) then n := 0 else n := 1 fi;write ( n )"
         val result = parser.parse(program, parser)
-        Assert.assertEquals(listOf(1), result?.interpret(listOf(5)))
+        Assert.assertEquals(listOf(1), result?.interpret(listOf(4)))
     }
 }
