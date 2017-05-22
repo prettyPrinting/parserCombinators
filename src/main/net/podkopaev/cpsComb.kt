@@ -338,7 +338,7 @@ fun <A> many1(parser: Recognizer<A>): Recognizer<List<A>> =
 
 fun char(c: Char): Recognizer<Char> = satp { it == c }
 val space : Recognizer<Char> =
-        char(' ') / char('\n') / char('\t') /
+        char(' ') / char('\n') / char('\t') / char('\n') /
                 transp(terminal("\r\n")) { '\n' }
 val spaces: Recognizer<Char> = fix { s -> space / transp(seq(space, s), {' '}) }
 

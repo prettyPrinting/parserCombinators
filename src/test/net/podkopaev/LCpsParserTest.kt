@@ -36,13 +36,11 @@ class LCpsParserTest {
                 result)
     }
 
-//    @Test fun test4() {
-//        val parser = exprParser
-//        val result = parser.parse("1 + 2 + 3", parser)
-//        Assert.assertEquals(Expr.Binop("+", Expr.Binop("+", Expr.Con(1), Expr.Con(2)),
-//                Expr.Con(3)),
-//                result)
-//    }
+    @Test fun test4() {
+        val parser = exprParser
+        val result = parser.parse("1 + 2 + 3", parser)
+        Assert.assertEquals(6, result?.calc(hashMapOf()))
+    }
 
     @Test fun test5() {
         val parser = exprParser
@@ -92,10 +90,17 @@ class LCpsParserTest {
         Assert.assertEquals(listOf<Int>(), result?.interpret(listOf(2, 5)))
     }
 
+    val logpowProgram =
+            """read ( n );read ( k );r := 1;while k do
+               if ( k % 2 ) then
+                    r := ( r * n );k := ( k - 1 )
+               else
+                    n := ( n * n );k := ( k / 2 )
+               fi od;write ( r )"""
+
     @Test fun test14() {
         val parser = stmtParser
-        val program = "read ( k );if ( k % 2 ) then n := 0 else n := 1 fi;write ( n )"
-        val result = parser.parse(program, parser)
-        Assert.assertEquals(listOf(1), result?.interpret(listOf(4)))
+        val result = parser.parse(logpowProgram, parser)
+        Assert.assertEquals(listOf(32), result?.interpret(listOf(2, 5)))
     }
 }
