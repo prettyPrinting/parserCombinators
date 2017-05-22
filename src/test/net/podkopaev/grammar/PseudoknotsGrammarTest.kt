@@ -25,7 +25,7 @@ class PseudoknotsGrammarTest {
         Assert.assertEquals(inp.length, p.parse(inp, p))
     }
     @Test fun test4() {
-        val inp = "[".repeat(450) + "(".repeat(100) + "]".repeat(450) + ")".repeat(100)
+        val inp = "[".repeat(50) + "(".repeat(100) + "]".repeat(50) + ")".repeat(100)
         val p = grParser
         Assert.assertEquals(inp.length, p.parse(inp, p))
     }
