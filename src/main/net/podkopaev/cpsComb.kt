@@ -338,7 +338,7 @@ fun <A> many1(parser: Recognizer<A>): Recognizer<List<A>> =
 
 fun char(c: Char): Recognizer<Char> = satp { it == c }
 val space : Recognizer<Char> =
-        char(' ') / char('\n') / char('\t') /
+        char(' ') / char('\n') / char('\t') / char('\n') /
                 transp(terminal("\r\n")) { '\n' }
 val spaces: Recognizer<Char> = fix { s -> space / transp(seq(space, s), {' '}) }
 
@@ -357,12 +357,12 @@ val alpha: Recognizer<Char> = satp {
 val alphaOrDigit: Recognizer<Char> = alpha / digit
 val number: Recognizer<Int>        = (digit map {it-> it.toString().toInt()}) / (many1(digit) map { it.toStr().toInt() })
 val word  : Recognizer<String>     = many1(alpha) map { it.toStr() }
-val symbol: Recognizer<String>     = seq(alpha, many0(alphaOrDigit)) map {
+val symbol: Recognizer<String>     = (seq(alpha, many0(alphaOrDigit)) map {
             val sb = StringBuilder()
             sb.append(it.first)
             it.second.forEach { sb.append(it) }
             sb.toString()
-        }
+        }) / (alpha map { t -> t.toString() })
 fun <A> leftAssocp(opp: Recognizer<String>, elemp: Recognizer<A>,
                    f: (String, A, A) -> A): Recognizer<A> {
     val rightp = opp + elemp
